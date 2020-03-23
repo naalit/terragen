@@ -1,0 +1,6 @@
+run
+build
+.metals
+.gradle
+.bloop
+gradle

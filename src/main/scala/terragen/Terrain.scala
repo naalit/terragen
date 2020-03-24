@@ -13,15 +13,18 @@ import org.apache.logging.log4j.Logger
 
 object ExtraBiomes {
   var COLD_DESERT: Biome = null
+  var NULL_BIOME: Biome = null
 
-  def init() {
+  def init(terr: Terrain) {
     if (COLD_DESERT == null)
       COLD_DESERT = new biomes.ColdDesert()
+    if (NULL_BIOME == null)
+      NULL_BIOME = new biomes.NullBiome(terr)
   }
 }
 
 class Terrain extends BiomeProvider {
-  ExtraBiomes.init()
+  ExtraBiomes.init(this)
 
   val LOGGER = LogManager.getLogger()
 
@@ -44,7 +47,7 @@ class Terrain extends BiomeProvider {
     var acc = 0.0
     val omega = 0.7
     var a = 1.0
-    var s = 100.0
+    var s = 130.0
 
     for (_ <- 0 until octaves) {
       acc += gen.getValue(x * s, z * s) * a //hash(x * s, z * s, 19.08) * a
@@ -151,7 +154,7 @@ class Terrain extends BiomeProvider {
       70 +
       + plate_height * plate_dist * 20 // Hotter further from the sea
       - Math.pow(pole_dist, 0.125) * 75 // And further from the poles
-      - h * 8 // Colder at high altitudes
+      - h * 4 // Colder at high altitudes
       + fBm(243.23+px*0.01, 987.96+pz*0.01, 6) * 10 // Add some noise
     )
     t + rand.nextDouble() * 8 - 4
@@ -170,15 +173,16 @@ class Terrain extends BiomeProvider {
     ) + plate_height + 0.5 * fBm(px * 0.05, pz * 0.05, 6)
 
     val r = (
-      (1-h) // Wetter at lower altitudes
-      * (0.2 + 0.5 * (1-plate_height*plate_dist)) // And closer to the sea
-      + (0.4 + 0.2 * fBm(432.32 - px*0.01, -987.62 + pz*0.01, 6)) // Add some noise
+      0.55 + (1-h) * 0.2 // Wetter at lower altitudes
+      - 0.7 * plate_height * plate_dist // And closer to the sea
+      + 0.1 * fBm(432.32 - px*0.01, -987.62 + pz*0.01, 6) // Add some noise
     )
     r + rand.nextDouble() * 0.1 - 0.05
   }
 
   override def findBiomePosition(x: Int, z: Int, range: Int, biomes: java.util.List[Biome], random: java.util.Random): BlockPos = null
   override def getBiome(x: Int, z: Int): Biome = {
+    return ExtraBiomes.NULL_BIOME
     val h = height(x, z) + rand.nextDouble() * 6 - 3
     val t = temp(x, z)
     val r = rain(x, z)
@@ -298,7 +302,8 @@ class Terrain extends BiomeProvider {
   }
   override def getBiomesInSquare(centerX: Int, centerZ: Int, sideLength: Int): java.util.Set[Biome] = {
     var x = new java.util.HashSet[Biome]()
-    x.addAll(getBiomes(centerX - sideLength / 2, centerZ - sideLength / 2, sideLength, sideLength, false).toList)
+    x.add(ExtraBiomes.NULL_BIOME)
+    //x.addAll(getBiomes(centerX - sideLength / 2, centerZ - sideLength / 2, sideLength, sideLength, false).toList)
     x
   }
   override def getSurfaceBlocks(): java.util.Set[BlockState] = surface

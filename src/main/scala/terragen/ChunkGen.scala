@@ -33,7 +33,8 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
     val start_z = pos.getZStart()
 
     for (x <- 0 until 16; z <- 0 until 16) {
-      val h = chunkIn.getTopBlockY(Heightmap.Type.WORLD_SURFACE_WG, x, z) + 1
+      //val h = chunkIn.getTopBlockY(Heightmap.Type.WORLD_SURFACE_WG, x, z) + 1
+      val h = chunkIn.getTopBlockY(Heightmap.Type.OCEAN_FLOOR_WG, x, z) + 1
       biomes(z * 16 + x).buildSurface(
         rand,
         chunkIn,

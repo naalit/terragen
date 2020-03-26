@@ -30,9 +30,14 @@ class Terrain extends BiomeProvider {
 
   val rand = new SharedSeedRandom()
 
-  val p = Array.fill(512) { rand.nextDouble }
+  def reseed(seed: Long): Unit = {
+    rand.setSeed(seed)
+    gen = new net.minecraft.world.gen.SimplexNoiseGenerator(rand)
+    p = Array.fill(512) { rand.nextDouble }
+  }
 
-  //var temp = Biome.BIOMES.toSeq.sortBy((x: Biome) => x.getDefaultTemperature)
+  var p = Array.fill(512) { rand.nextDouble }
+
   val surface = {
     var m = new java.util.HashSet[BlockState]
     for (biome <- Biome.BIOMES) {
@@ -41,7 +46,7 @@ class Terrain extends BiomeProvider {
     m
   }
 
-  val gen = new net.minecraft.world.gen.SimplexNoiseGenerator(rand)
+  var gen = new net.minecraft.world.gen.SimplexNoiseGenerator(rand)
 
   def fBm(x: Double, z: Double, octaves: Int): Double = {
     var acc = 0.0
@@ -117,6 +122,17 @@ class Terrain extends BiomeProvider {
     (min_d2, mh)
   }
 
+  def fault_dist(x: Int, z: Int): Double = {
+    val px = x*0.0001
+    val pz = z*0.0001
+
+    val (plate_dist, plate_height) = voronoi(px * 2, pz * 2)
+
+    plate_dist
+  }
+
+  def red_sand(x: Int, z: Int): Boolean = gen.getValue(x * 0.0005 + 32.29487, z * 0.0005 - 932.2674) + rand.nextDouble() * 0.05 > 0.2
+
   def height(x: Int, z: Int): Int = {
     val px = x*0.0001
     val pz = z*0.0001
@@ -127,8 +143,8 @@ class Terrain extends BiomeProvider {
       0.8,
       1.0,
       1 - plate_dist
-    ) + plate_height + 0.5 * fBm(px * 0.05, pz * 0.05, 6)
-    //val h = 0.6 + 0.5 * fBm(px * 0.05, pz * 0.05, 6)
+    ) + plate_height + 0.5 * fBm(px * 0.05, pz * 0.05, 7)
+
     (h * 80).max(3).asInstanceOf[Int]
   }
 
@@ -149,13 +165,34 @@ class Terrain extends BiomeProvider {
       1 - plate_dist
     ) + plate_height + 0.5 * fBm(px * 0.05, pz * 0.05, 6)
 
-    // Roughly in Celsius
+    // in Celsius
     val t = (
-      70 +
-      + plate_height * plate_dist * 20 // Hotter further from the sea
-      - Math.pow(pole_dist, 0.125) * 75 // And further from the poles
-      - h * 4 // Colder at high altitudes
-      + fBm(243.23+px*0.01, 987.96+pz*0.01, 6) * 10 // Add some noise
+      22 + // Base temperature
+      (4-4*Math.pow(h, 8) // Colder higher up
+       +80*(pole_dist-0.25) // Colder at poles
+       +5*fBm(243.23+px*0.01, 987.96+pz*0.01, 6)) // Noise
+      * (0.5*plate_dist*plate_height) // Water regulates the temperature
+    )
+    t + rand.nextDouble() * 8 - 4
+  }
+
+  def temp_at_y(x: Int, z: Int, y: Int): Double = {
+    val px = x*0.0001
+    val pz = z*0.0001
+
+    val (plate_dist, plate_height) = voronoi(px * 2, pz * 2)
+    // Fake poles with Voronoi - pole_dist is toward poles - away from cell edges
+    val (pole_dist, _) = voronoi(px * 1 + pole_cx * 31.24, pz * 1 + pole_cz * 98.67)
+
+    val h = y / 80
+
+    // in Celsius
+    val t = (
+      12 + // Base temperature
+      (4-4*Math.pow(h, 8) // Colder higher up
+       +80*(pole_dist-0.25) // Colder at poles
+       +5*fBm(243.23+px*0.01, 987.96+pz*0.01, 6)) // Noise
+      * (0.5*plate_dist*plate_height) // Water regulates the temperature
     )
     t + rand.nextDouble() * 8 - 4
   }
@@ -173,9 +210,9 @@ class Terrain extends BiomeProvider {
     ) + plate_height + 0.5 * fBm(px * 0.05, pz * 0.05, 6)
 
     val r = (
-      0.55 + (1-h) * 0.2 // Wetter at lower altitudes
-      - 0.7 * plate_height * plate_dist // And closer to the sea
-      + 0.1 * fBm(432.32 - px*0.01, -987.62 + pz*0.01, 6) // Add some noise
+      0.8 + (1-h) * 0.2 // Wetter at lower altitudes
+      - 1.2 * plate_height * plate_dist // And closer to the sea
+      + 0.3 * fBm(432.32 - px*0.01, -987.62 + pz*0.01, 6) // Add some noise
     )
     r + rand.nextDouble() * 0.1 - 0.05
   }

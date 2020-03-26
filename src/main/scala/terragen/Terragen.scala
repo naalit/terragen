@@ -14,12 +14,14 @@ import net.minecraft.world.WorldType
 import net.minecraft.world.biome.provider.OverworldBiomeProvider
 import net.minecraft.world.biome.provider.OverworldBiomeProviderSettings
 import net.minecraft.world.biome.Biome
+import net.minecraftforge.common.MinecraftForge
+
 
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
 @Mod("terragen")
-class Terragen extends WorldType("Terragen") {
+class Terragen extends WorldType("terragen") {
   val LOGGER = LogManager.getLogger()
 
   val terr = new Terrain
@@ -32,13 +34,17 @@ class Terragen extends WorldType("Terragen") {
       // For some reason, a) registry events fire on the mod bus, and b) we get all registry events in here, not just biome ones
       if (evt.getName().toString().equals("minecraft:biome")) {
         ExtraBiomes.init(terr)
+        MinecraftForge.EVENT_BUS.register(ExtraBiomes.NULL_BIOME)
         evt.getRegistry().registerAll(ExtraBiomes.COLD_DESERT.setRegistryName("cold_desert"), ExtraBiomes.NULL_BIOME.setRegistryName("null_biome"))
         LOGGER.debug("Registered biome")
       }
     }
   })
 
-  override def createChunkGenerator(world: World): ChunkGenerator[_] = new ChunkGen(world, terr, new GenerationSettings())
+  override def createChunkGenerator(world: World): ChunkGenerator[_] = {
+    terr.reseed(world.getSeed)
+    new ChunkGen(world, terr, new GenerationSettings())
+  }
 
   def commonSetup(evt: FMLCommonSetupEvent) {
     LOGGER.info("Working!")

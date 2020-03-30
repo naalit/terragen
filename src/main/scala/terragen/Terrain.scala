@@ -50,7 +50,7 @@ class Terrain extends BiomeProvider {
 
   def fBm(x: Double, z: Double, octaves: Int): Double = {
     var acc = 0.0
-    val omega = 0.7
+    val omega = 0.5
     var a = 1.0
     var s = 130.0
 
@@ -113,7 +113,10 @@ class Terrain extends BiomeProvider {
       val d2 = rx * rx + rz * rz
 
       // Continent with random width
-      val h_base = hash(j + nz, i + nx, -3287) + 0.15
+      var h_base = hash(j + nz, i + nx, -3287) + 0.15
+      // Force a continent near spawn so you don't spawn in the middle of the sea
+      if (i + nx == 0 && j + nz == 0)
+        h_base -= 0.5
       val h = smoothstep(h_base, h_base + 0.06, 1 - Math.sqrt(d2))
 
       mh = mh.max(h)

@@ -41,8 +41,9 @@ abstract class Plant(val cover: Double, val density: Double, val noise_interval:
 case class HRange(tlow: Temp, thigh: Temp, rlow: Rain, rhigh: Rain, hlow: Double, hhigh: Double) {
   def check(rain: Rain, temp: Temp, height: Double): Boolean = rain >= rlow && rain <= rhigh && temp >= tlow && temp <= thigh && height >= hlow && height <= hhigh
 
-  def check(rain: Rain): Boolean = rain >= rlow && rain <= rhigh
-  def check(temp: Temp): Boolean = temp >= tlow && temp <= thigh
+  // The > is kind of a hack so podzol doesn't appear on top of grass
+  def check(rain: Rain): Boolean = rain > rlow && rain <= rhigh
+  def check(temp: Temp): Boolean = temp > tlow && temp <= thigh
   def check(height: Double): Boolean = height >= hlow && height <= hhigh
 
   def has_t: Boolean = (tlow > T.POLAR) || (thigh < T.ANY)
@@ -246,21 +247,21 @@ class Coral(override val cover: Double, override val density: Double, crange: HR
 }
 
 object T {
-  val ANY = Temp(30)
+  val ANY = Temp(40)
   val TROPIC = Temp(25)
   val SUBTROPIC = Temp(16)
   val TEMPERATE = Temp(8)
   val SUBPOLAR = Temp(0)
-  val POLAR = Temp(-10)
+  val POLAR = Temp(-20)
 }
 
 object R {
-  val ANY = Rain(1.0)
+  val ANY = Rain(1.5)
   val WET = Rain(0.75)
   val DAMP = Rain(0.5)
   val NORMAL = Rain(0.25)
   val DRY = Rain(0.15)
-  val DESERT = Rain(0.0)
+  val DESERT = Rain(-0.5)
 }
 
 object S {

@@ -68,7 +68,7 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
     def next: Double = {
       if (i > 63)
         LOGGER.fatal("RAN OUT OF COEFFICIENTS")
-      val n = terr.fBm(x * 0.000003 + COEFX(i), z * 0.000003 + COEFZ(i), 6)
+      val n = terr.fBm(x * 0.000004 + COEFX(i), z * 0.000004 + COEFZ(i), 6)
       i += 1
       n * 0.5 + 0.5
     }
@@ -113,10 +113,10 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
     }
 
     // Sedimentary rocks only form where there's sediment - flowing water or wind
-    val sedimentary = terr.smoothstep(0, 4, 67-arr.length) + terr.smoothstep(0.25, 0.35, (terr.rain(x, arr.length, z) - 0.5).abs)
+    val sedimentary = terr.smoothstep(0.0, 0.5, (terr.rain(x, arr.length, z) - 0.5).abs)
     for (rock <- Strata.SEDIMENTARY) {
       // Age doesn't matter here
-      place_rock(sedimentary * rock.getSizeAt(next, terr, x, arr.length, z, continent_blend, 0), rock.getBlock(red))
+      place_rock(sedimentary * rock.getSizeAt(next, terr, x, arr.length, z, continent_blend, 10), rock.getBlock(red))
     }
 
     // These are a little different - they're always one block replacing a random block we've already placed
@@ -142,6 +142,9 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
       }
       place_rock(s.ceil, rock.getBlock(red))
     }
+    // Ocean sand is hardcoded in
+    if (b && arr.length < 70 && age > 0.3)
+      place_rock(((y - arr.length) + 2 + next) * age, if (red) Blocks.RED_SAND.getDefaultState else Blocks.SAND.getDefaultState)
 
     arr
   }

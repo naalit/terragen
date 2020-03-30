@@ -71,7 +71,7 @@ minecraft {
             property 'forge.logging.console.level', 'debug'
 
             mods {
-                examplemod {
+                terragen {
                     source sourceSets.main
                 }
             }
@@ -87,7 +87,7 @@ minecraft {
             property 'forge.logging.console.level', 'debug'
 
             mods {
-                examplemod {
+                terragen {
                     source sourceSets.main
                 }
             }

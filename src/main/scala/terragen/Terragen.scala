@@ -35,6 +35,8 @@ object TBlocks {
   val BASALT = new Block(Block.Properties.create(Material.ROCK, MaterialColor.OBSIDIAN).hardnessAndResistance(1.2F, 5.0F))
   // Neither is limestone
   val LIMESTONE = new Block(Block.Properties.create(Material.ROCK, MaterialColor.SAND).hardnessAndResistance(1.2F, 5.0F))
+  // But marble's harder
+  val MARBLE = new Block(Block.Properties.create(Material.ROCK, MaterialColor.QUARTZ).hardnessAndResistance(1.7F, 7.0F))
   // Leaves ticking and updating often freezes the game near rainforests
   val LEAF = new SimpleLeaf()
 }
@@ -58,6 +60,7 @@ class Terragen extends WorldType("terragen") {
         evt.asInstanceOf[RegistryEvent.Register[Block]].getRegistry.registerAll(
           TBlocks.BASALT.setRegistryName("terragen:basalt"),
           TBlocks.LIMESTONE.setRegistryName("terragen:limestone"),
+          TBlocks.MARBLE.setRegistryName("terragen:marble"),
           TBlocks.LEAF.setRegistryName("terragen:leaf")
         )
         LOGGER.debug("Registered blocks")
@@ -67,6 +70,7 @@ class Terragen extends WorldType("terragen") {
         evt.asInstanceOf[RegistryEvent.Register[Item]].getRegistry.registerAll(
           new BlockItem(TBlocks.BASALT, new Item.Properties().group(ItemGroup.BUILDING_BLOCKS)).setRegistryName("terragen:basalt"),
           new BlockItem(TBlocks.LIMESTONE, new Item.Properties().group(ItemGroup.BUILDING_BLOCKS)).setRegistryName("terragen:limestone"),
+          new BlockItem(TBlocks.MARBLE, new Item.Properties().group(ItemGroup.BUILDING_BLOCKS)).setRegistryName("terragen:marble"),
           new BlockItem(TBlocks.LEAF, new Item.Properties().group(ItemGroup.BUILDING_BLOCKS)).setRegistryName("terragen:leaf")
         )
         LOGGER.debug("Registered blocks")

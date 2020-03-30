@@ -6,7 +6,8 @@ buildscript {
     }
     dependencies {
         classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
-        classpath 'ch.epfl.scala:gradle-bloop_2.11:1.4.0-RC1-113-2d5d2caa'
+        classpath 'ch.epfl.scala:gradle-bloop_2.12:1.4.0-RC1-165-906110dc'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.4'
     }
 }
 apply plugin: 'net.minecraftforge.gradle'
@@ -15,12 +16,36 @@ apply plugin: 'scala'
 apply plugin: bloop.integrations.gradle.BloopPlugin
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
-
+apply plugin: 'com.github.johnrengelman.shadow'
 version = '1.0'
 group = 'terragen' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = 'terragen'
 
 sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
+
+repositories {
+    maven { url = 'https://files.minecraftforge.net/maven' }
+    jcenter()
+    mavenCentral()
+}
+
+configurations {
+  bundle
+  implementation.extendsFrom bundle
+}
+
+import net.minecraftforge.gradle.common.task.JarExec
+
+tasks.withType(JarExec) {
+  dependsOn shadowJar
+}
+
+shadowJar {
+  classifier = ""
+  configurations = [project.configurations.bundle]
+  relocate 'scala', 'terragen.shadow.scala'
+  minimize()
+}
 
 minecraft {
     // The mappings can be changed at any time, and must be in the following format.
@@ -111,7 +136,7 @@ dependencies {
     // For more info...
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
-    implementation 'org.scala-lang:scala-library:2.11.12'
+    bundle 'org.scala-lang:scala-library:2.12.10'
 }
 
 // Example for how to get properties into the manifest for reading by the runtime..

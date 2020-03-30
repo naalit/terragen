@@ -1,3 +1,6 @@
 {
-  "generator.terragen": "Terragen"
+  "generator.terragen": "Terragen",
+  "block.terragen.basalt": "Basalt",
+  "block.terragen.limestone": "Limestone",
+  "block.terragen.leaf": "Leaf"
 }

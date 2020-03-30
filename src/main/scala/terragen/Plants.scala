@@ -7,6 +7,8 @@ import net.minecraft.world.IWorld
 import net.minecraft.util.SharedSeedRandom
 import scala.collection.mutable.ArrayStack
 import net.minecraft.block.DoublePlantBlock
+import net.minecraftforge.registries.ForgeRegistryEntry
+import net.minecraft.util.ResourceLocation
 
 case class NI(low: Double, high: Double) {
   def check(x: Double) = x >= low && x <= high
@@ -18,22 +20,33 @@ object NI {
 case class Temp(x: Double) {
   def <=(other: Temp) = this.x <= other.x
   def >=(other: Temp) = this.x >= other.x
+  def <(other: Temp) = this.x < other.x
+  def >(other: Temp) = this.x > other.x
 }
 case class Rain(x: Double) {
   def <=(other: Rain) = this.x <= other.x
   def >=(other: Rain) = this.x >= other.x
+  def <(other: Rain) = this.x < other.x
+  def >(other: Rain) = this.x > other.x
 }
 
 // cover = how much space is reserved for not other plants
 // density = how much space is actually filled with it
 // so if cover == density then it won't use up any free space
-abstract class Plant(val cover: Double, val density: Double, val noise_interval: NI) {
+abstract class Plant(val cover: Double, val density: Double, val noise_interval: NI, val water: Boolean) extends ForgeRegistryEntry[Plant] {
   def check(rain: Rain, temp: Temp, height: Double, below: BlockState): Boolean
   def place(pos: BlockPos, world: IWorld, rand: Terrain): Unit
 }
 
 case class HRange(tlow: Temp, thigh: Temp, rlow: Rain, rhigh: Rain, hlow: Double, hhigh: Double) {
   def check(rain: Rain, temp: Temp, height: Double): Boolean = rain >= rlow && rain <= rhigh && temp >= tlow && temp <= thigh && height >= hlow && height <= hhigh
+
+  def check(rain: Rain): Boolean = rain >= rlow && rain <= rhigh
+  def check(temp: Temp): Boolean = temp >= tlow && temp <= thigh
+  def check(height: Double): Boolean = height >= hlow && height <= hhigh
+
+  def has_t: Boolean = (tlow > T.POLAR) || (thigh < T.ANY)
+  def has_r: Boolean = (rlow > R.DESERT) || (rhigh < R.ANY)
 }
 object CRange {
   def apply(tlow: Temp, thigh: Temp, rlow: Rain, rhigh: Rain): HRange = HRange(tlow, thigh, rlow, rhigh, 0, 256)
@@ -43,7 +56,7 @@ object SeaRange {
   def apply(tlow: Temp, thigh: Temp, hhigh: Double): HRange = HRange(tlow, thigh, Rain(0), Rain(1), 0, hhigh)
 }
 
-case class SimplePlant(override val cover: Double, override val density: Double, block: BlockState, crange: HRange, ground: Set[BlockState], ni: NI) extends Plant(cover, density, ni) {
+case class SimplePlant(override val cover: Double, override val density: Double, block: BlockState, crange: HRange, ground: Set[BlockState], ni: NI, override val water: Boolean) extends Plant(cover, density, ni, water) {
   override def check(rain: Rain, temp: Temp, height: Double, below: BlockState): Boolean = crange.check(rain, temp, height) && ground.contains(below)
 
   override def place(pos: BlockPos, world: IWorld, rand: Terrain): Unit = {
@@ -51,7 +64,7 @@ case class SimplePlant(override val cover: Double, override val density: Double,
   }
 }
 
-case class FlowerPlant(override val cover: Double, override val density: Double, blocks: Array[Block], crange: HRange, ground: Set[BlockState], ni: NI) extends Plant(cover, density, ni) {
+case class FlowerPlant(override val cover: Double, override val density: Double, blocks: Array[Block], crange: HRange, ground: Set[BlockState], ni: NI) extends Plant(cover, density, ni, false) {
   override def check(rain: Rain, temp: Temp, height: Double, below: BlockState): Boolean = crange.check(rain, temp, height) && ground.contains(below)
 
   override def place(pos: BlockPos, world: IWorld, terr: Terrain): Unit = {
@@ -60,7 +73,7 @@ case class FlowerPlant(override val cover: Double, override val density: Double,
   }
 }
 
-case class DoublePlant(override val cover: Double, override val density: Double, block: DoublePlantBlock, crange: HRange, ground: Set[BlockState], ni: NI) extends Plant(cover, density, ni) {
+case class DoublePlant(override val cover: Double, override val density: Double, block: DoublePlantBlock, crange: HRange, ground: Set[BlockState], ni: NI, override val water: Boolean) extends Plant(cover, density, ni, water) {
   override def check(rain: Rain, temp: Temp, height: Double, below: BlockState): Boolean = crange.check(rain, temp, height) && ground.contains(below)
 
   override def place(pos: BlockPos, world: IWorld, rand: Terrain): Unit = {
@@ -68,7 +81,7 @@ case class DoublePlant(override val cover: Double, override val density: Double,
   }
 }
 
-class Tree(override val cover: Double, override val density: Double, crange: HRange, ground: Set[BlockState], lheight: Int, hheight: Int, trunk: BlockState, lrad: Int, hrad: Int, leaf: BlockState, ni: NI) extends Plant(cover, density, ni) {
+class Tree(override val cover: Double, override val density: Double, crange: HRange, ground: Set[BlockState], lheight: Int, hheight: Int, trunk: BlockState, lrad: Int, hrad: Int, leaf: BlockState, ni: NI) extends Plant(cover, density, ni, false) {
   override def check(rain: Rain, temp: Temp, height: Double, below: BlockState): Boolean = crange.check(rain, temp, height) && ground.contains(below)
 
   def make_trunk(pos: BlockPos, world: IWorld, rand: SharedSeedRandom, height_mod: Int): ArrayStack[BlockPos] = {
@@ -182,7 +195,7 @@ class SplitTree(override val cover: Double, override val density: Double, crange
 }
 
 class Coral(override val cover: Double, override val density: Double, crange: HRange, ground: Set[BlockState], lheight: Int, hheight: Int, trunk: BlockState, top: BlockState, fan: Block, bend_fac: Double, split_fac: Double, ni: NI)
-  extends Plant(cover, density, ni) {
+  extends Plant(cover, density, ni, true) {
   override def check(rain: Rain, temp: Temp, height: Double, below: BlockState): Boolean = crange.check(rain, temp, height) && ground.contains(below)
 
   override def place(pos: BlockPos, world: IWorld, terr: Terrain): Unit = place_(pos, world, terr.rand, 0)
@@ -262,47 +275,71 @@ object Plants {
   val ALL = Array[Plant](
     // All the trees have persistent leaves because I'm making the canopies larger than Minecraft's
     // Brazil nut tree
-    new Tree(0.2, 0.1, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 30, 40, Blocks.JUNGLE_LOG.getDefaultState(), 5, 7, Blocks.JUNGLE_LEAVES.getDefaultState.cycle(BlockStateProperties.PERSISTENT), NI.ALL),
+    new Tree(0.2, 0.1, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 30, 40, Blocks.JUNGLE_LOG.getDefaultState(), 5, 7, TBlocks.LEAF.getDefaultState, NI.ALL)
+      .setRegistryName("brazil_nut"),
     // Young Brazil nut
-    new Tree(0.1, 0.05, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 2, 5, Blocks.JUNGLE_LOG.getDefaultState, 1, 2, Blocks.JUNGLE_LEAVES.getDefaultState.cycle(BlockStateProperties.PERSISTENT), NI.ALL),
+    new Tree(0.1, 0.05, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 2, 5, Blocks.JUNGLE_LOG.getDefaultState, 1, 2, TBlocks.LEAF.getDefaultState, NI.ALL)
+      .setRegistryName("young_brazil_nut"),
     // Bamboo
-    new BareTree(0.1, 0.05, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 2, 18, Blocks.BAMBOO.getDefaultState, NI(0.4, 1)),
+    new BareTree(0.1, 0.05, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 2, 18, Blocks.BAMBOO.getDefaultState, NI(0.4, 1))
+      .setRegistryName("bamboo"),
 
     // Mushrooms in the rainforest
-    FlowerPlant(0.1, 0.1, Array(Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM), CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, NI.ALL),
+    FlowerPlant(0.1, 0.1, Array(Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM), CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, NI.ALL)
+      .setRegistryName("mushroom"),
     // This is supposed to be holly or something; an understory specialist
-    SimplePlant(0.2, 0.2, Blocks.SWEET_BERRY_BUSH.getDefaultState, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, NI.ALL),
+    SimplePlant(0.2, 0.2, Blocks.SWEET_BERRY_BUSH.getDefaultState, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, NI.ALL, false)
+      .setRegistryName("forest_bush"),
     // If we're in a rainforest and nothing's grown yet, we'll probably want ferns there
-    DoublePlant(0.5, 0.5, Blocks.LARGE_FERN.asInstanceOf[DoublePlantBlock], CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, NI.ALL),
-    SimplePlant(0.9, 0.9, Blocks.FERN.getDefaultState, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, NI.ALL),
+    DoublePlant(0.5, 0.5, Blocks.LARGE_FERN.asInstanceOf[DoublePlantBlock], CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, NI.ALL, false)
+      .setRegistryName("double_fern"),
+    SimplePlant(0.9, 0.9, Blocks.FERN.getDefaultState, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, NI.ALL, false)
+      .setRegistryName("fern"),
 
     // Savannah
     // I'm making this an Australian mulga
-    new SplitTree(0.2, 0.002, CRange(T.TEMPERATE, T.ANY, Rain(0.1), R.NORMAL), S.DIRT_GRASS, 3, 7, Blocks.ACACIA_LOG.getDefaultState, 2, 5, Blocks.ACACIA_LEAVES.getDefaultState.cycle(BlockStateProperties.PERSISTENT), 0.3, 0.1, NI(0.2, 1)),
-    DoublePlant(0.4, 0.4, Blocks.TALL_GRASS.asInstanceOf[DoublePlantBlock], CRange(T.TEMPERATE, T.ANY, R.DRY, R.DAMP), S.DIRT_GRASS, NI.ALL),
+    new SplitTree(0.2, 0.002, CRange(T.TEMPERATE, T.ANY, Rain(0.1), R.NORMAL), S.DIRT_GRASS, 3, 7, Blocks.ACACIA_LOG.getDefaultState, 2, 5, TBlocks.LEAF.getDefaultState, 0.3, 0.1, NI(0.2, 1))
+      .setRegistryName("mulga_tree"),
+    DoublePlant(0.4, 0.4, Blocks.TALL_GRASS.asInstanceOf[DoublePlantBlock], CRange(T.TEMPERATE, T.ANY, R.DRY, R.DAMP), S.DIRT_GRASS, NI.ALL, false)
+      .setRegistryName("tall_grass"),
 
     // Birch tree
-    new Tree(0.2, 0.01, CRange(Temp(2), Temp(12), R.NORMAL, R.WET), S.DIRT_GRASS, 7, 16, Blocks.BIRCH_LOG.getDefaultState, 2, 5, Blocks.BIRCH_LEAVES.getDefaultState.cycle(BlockStateProperties.PERSISTENT), NI(0, 0.4)),
+    new Tree(0.2, 0.01, CRange(Temp(2), Temp(12), R.NORMAL, R.WET), S.DIRT_GRASS, 7, 16, Blocks.BIRCH_LOG.getDefaultState, 2, 5, TBlocks.LEAF.getDefaultState, NI(0, 0.4))
+      .setRegistryName("birch"),
     // Oak tree
-    new SplitTree(0.2, 0.01, CRange(T.TEMPERATE, T.TROPIC, R.NORMAL, R.WET), S.DIRT_GRASS, 8, 12, Blocks.OAK_LOG.getDefaultState, 3, 6, Blocks.OAK_LEAVES.getDefaultState.cycle(BlockStateProperties.PERSISTENT), 0.2, 0.2, NI(0.1, 0.9)),
+    new SplitTree(0.2, 0.01, CRange(T.TEMPERATE, T.TROPIC, R.NORMAL, R.WET), S.DIRT_GRASS, 8, 12, Blocks.OAK_LOG.getDefaultState, 3, 6, TBlocks.LEAF.getDefaultState, 0.2, 0.2, NI(0.1, 0.9))
+      .setRegistryName("oak"),
     // Dark oak; I'm saying these are the bigger oaks
-    new SplitTree(0.2, 0.01, CRange(T.TEMPERATE, T.TROPIC, R.NORMAL, R.WET), S.DIRT_GRASS, 11, 15, Blocks.DARK_OAK_LOG.getDefaultState, 4, 7, Blocks.DARK_OAK_LEAVES.getDefaultState.cycle(BlockStateProperties.PERSISTENT), 0.2, 0.2, NI(0.1, 0.9)),
+    new SplitTree(0.2, 0.01, CRange(T.TEMPERATE, T.TROPIC, R.NORMAL, R.WET), S.DIRT_GRASS, 11, 15, Blocks.DARK_OAK_LOG.getDefaultState, 4, 7, TBlocks.LEAF.getDefaultState, 0.2, 0.2, NI(0.1, 0.9))
+      .setRegistryName("dark_oak"),
     // Spruce
-    new SpruceTree(0.4, 0.05, CRange(T.SUBPOLAR, Temp(10), R.NORMAL, R.DAMP), S.DIRT_GRASS, 8, 40, Blocks.SPRUCE_LOG.getDefaultState, 2, 4, Blocks.SPRUCE_LEAVES.getDefaultState.cycle(BlockStateProperties.PERSISTENT), NI(0.3, 1)),
+    new SpruceTree(0.4, 0.05, CRange(T.SUBPOLAR, Temp(10), R.NORMAL, R.DAMP), S.DIRT_GRASS, 8, 40, Blocks.SPRUCE_LOG.getDefaultState, 2, 4, TBlocks.LEAF.getDefaultState, NI(0.3, 1))
+      .setRegistryName("spruce"),
 
-    FlowerPlant(0.05, 0.05, S.FLOWERS, CRange(T.TEMPERATE, T.ANY, R.NORMAL, R.ANY), S.DIRT_GRASS, NI.ALL),
-    SimplePlant(0.3, 0.3, Blocks.GRASS.getDefaultState(), CRange(T.TEMPERATE, T.ANY, R.NORMAL, R.WET), S.DIRT_GRASS, NI.ALL),
-    SimplePlant(0.2, 0.2, Blocks.DEAD_BUSH.getDefaultState(), CRange(T.TEMPERATE, T.ANY, R.DESERT, R.NORMAL), S.DIRT_SAND_GRAVEL, NI.ALL)
-  )
+    FlowerPlant(0.05, 0.05, S.FLOWERS, CRange(T.TEMPERATE, T.ANY, R.NORMAL, R.ANY), S.DIRT_GRASS, NI.ALL)
+      .setRegistryName("flower"),
+    SimplePlant(0.3, 0.3, Blocks.GRASS.getDefaultState(), CRange(T.TEMPERATE, T.ANY, R.NORMAL, R.WET), S.DIRT_GRASS, NI.ALL, false)
+      .setRegistryName("grass"),
+    SimplePlant(0.2, 0.2, Blocks.DEAD_BUSH.getDefaultState(), CRange(T.TEMPERATE, T.ANY, R.DESERT, R.NORMAL), S.DIRT_SAND_GRAVEL, NI.ALL, false)
+      .setRegistryName("dead_bush"),
 
-  val WATER = Array[Plant](
+    // WATER
+
     // Coral reefs
-    new Coral(0.3, 0.3, SeaRange(T.SUBTROPIC, T.ANY, 60), S.SAND, 1, 5, Blocks.FIRE_CORAL_BLOCK.getDefaultState, Blocks.FIRE_CORAL.getDefaultState, Blocks.FIRE_CORAL_WALL_FAN, 0.7, 0.6, NI(0.4, 0.9)),
-    new Coral(0.3, 0.3, SeaRange(T.SUBTROPIC, T.ANY, 60), S.SAND, 1, 5, Blocks.TUBE_CORAL_BLOCK.getDefaultState, Blocks.TUBE_CORAL.getDefaultState, Blocks.TUBE_CORAL_WALL_FAN, 0.7, 0.6, NI(0.5, 1)),
-    new Coral(0.3, 0.3, SeaRange(T.SUBTROPIC, T.ANY, 60), S.SAND, 1, 5, Blocks.HORN_CORAL_BLOCK.getDefaultState, Blocks.HORN_CORAL.getDefaultState, Blocks.HORN_CORAL_WALL_FAN, 0.7, 0.6, NI(0.4, 0.9)),
-    new Coral(0.3, 0.3, SeaRange(T.SUBTROPIC, T.ANY, 60), S.SAND, 1, 5, Blocks.BRAIN_CORAL_BLOCK.getDefaultState, Blocks.BRAIN_CORAL.getDefaultState, Blocks.BRAIN_CORAL_WALL_FAN, 0.7, 0.6, NI(0.5, 1)),
+    new Coral(0.3, 0.3, SeaRange(T.SUBTROPIC, T.ANY, 60), S.SAND, 1, 5, Blocks.FIRE_CORAL_BLOCK.getDefaultState, Blocks.FIRE_CORAL.getDefaultState, Blocks.FIRE_CORAL_WALL_FAN, 0.7, 0.6, NI(0.4, 0.9))
+      .setRegistryName("fire_coral"),
+    new Coral(0.3, 0.3, SeaRange(T.SUBTROPIC, T.ANY, 60), S.SAND, 1, 5, Blocks.TUBE_CORAL_BLOCK.getDefaultState, Blocks.TUBE_CORAL.getDefaultState, Blocks.TUBE_CORAL_WALL_FAN, 0.7, 0.6, NI(0.5, 1))
+      .setRegistryName("tube_coral"),
+    new Coral(0.3, 0.3, SeaRange(T.SUBTROPIC, T.ANY, 60), S.SAND, 1, 5, Blocks.HORN_CORAL_BLOCK.getDefaultState, Blocks.HORN_CORAL.getDefaultState, Blocks.HORN_CORAL_WALL_FAN, 0.7, 0.6, NI(0.4, 0.9))
+      .setRegistryName("horn_coral"),
+    new Coral(0.3, 0.3, SeaRange(T.SUBTROPIC, T.ANY, 60), S.SAND, 1, 5, Blocks.BRAIN_CORAL_BLOCK.getDefaultState, Blocks.BRAIN_CORAL.getDefaultState, Blocks.BRAIN_CORAL_WALL_FAN, 0.7, 0.6, NI(0.5, 1))
+      .setRegistryName("brain_coral"),
 
     // Sea grass
-    SimplePlant(0.3, 0.3, Blocks.SEAGRASS.getDefaultState, SeaRange(T.SUBPOLAR, T.ANY, 65), S.DIRT_SAND_GRAVEL, NI.ALL)
+    SimplePlant(0.3, 0.3, Blocks.SEAGRASS.getDefaultState, SeaRange(T.SUBPOLAR, T.ANY, 65), S.DIRT_SAND_GRAVEL, NI.ALL, true)
+      .setRegistryName("sea_grass")
   )
+
+  var LAND: Array[Plant] = null
+  var WATER: Array[Plant] = null
 }

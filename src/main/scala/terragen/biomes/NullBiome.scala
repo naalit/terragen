@@ -164,11 +164,16 @@ class NullBiome(terr: Terrain) extends Biome(new Biome.Builder().surfaceBuilder(
           val h = worldIn.getHeight(Heightmap.Type.OCEAN_FLOOR, x, z)
           val t = terr.temp(x, h, z) + random.nextDouble * 2 - 1
           val pos = new BlockPos(x, h, z)
-          if (worldIn.getBlockState(pos).getBlock() == Blocks.AIR && t < 0) {
+          if (t < 0 && worldIn.getBlockState(pos).getBlock() == Blocks.AIR) {
             worldIn.setBlockState(pos, Blocks.SNOW_BLOCK.getDefaultState(), 2)
             worldIn.setBlockState(new BlockPos(x, h+1, z), Blocks.SNOW.getDefaultState(), 2)
-          } else if (worldIn.getBlockState(pos).getBlock() == Blocks.AIR && t < 5)
+          } else if (t < 5 && worldIn.getBlockState(pos).getBlock() == Blocks.AIR)
             worldIn.setBlockState(pos, Blocks.SNOW.getDefaultState(), 2)
+
+          // Freeze the top layer of water
+          val ocean = new BlockPos(x, 63, z)
+          if (t < 5 && worldIn.getBlockState(ocean).getBlock == Blocks.WATER)
+            worldIn.setBlockState(ocean, Blocks.ICE.getDefaultState, 2)
         }
       }
       case _ => {}

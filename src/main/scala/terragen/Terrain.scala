@@ -168,17 +168,19 @@ class Terrain extends BiomeProvider {
     val h = y / 80
 
     // in Celsius
+    // Formula: 15+\left(4-4h^{8}+70\left(l-0.3\right)+5x\right)\left(0.5+dp\right)
     val t = (
-      22 + // Base temperature
+      15 + // Base temperature
       (4-4*Math.pow(h, 8) // Colder higher up
-       +80*(pole_dist-0.25) // Colder at poles
+       +70*(pole_dist-0.3) // Colder at poles
        +5*fBm(243.23+px*0.01, 987.96+pz*0.01, 6)) // Noise
-      * (0.5*plate_dist*plate_height) // Water regulates the temperature
+      * (0.5+plate_dist*plate_height) // Water regulates the temperature
     )
-    t + rand.nextDouble() * 8 - 4
+    t + rand.nextDouble() * 4 - 2
   }
 
-  def rain(x: Int, y: Int, z: Int): Double = {
+  // Without random blend
+  def rain_smooth(x: Int, y: Int, z: Int): Double = {
     val px = x*0.0001
     val pz = z*0.0001
 
@@ -186,12 +188,16 @@ class Terrain extends BiomeProvider {
 
     val h = y / 80
 
-    val r = (
+    // Formula: 0.8+\left(1-h\right)\cdot0.2-1.2pd+0.5x
+    (
       0.8 + (1-h) * 0.2 // Wetter at lower altitudes
       - 1.2 * plate_height * plate_dist // And closer to the sea
-      + 0.3 * fBm(432.32 - px*0.01, -987.62 + pz*0.01, 6) // Add some noise
+      + 0.5 * fBm(432.32 - px*0.005, -987.62 + pz*0.005, 6) // Add some noise
     )
-    r + rand.nextDouble() * 0.1 - 0.05
+  }
+
+  def rain(x: Int, y: Int, z: Int): Double = {
+    rain_smooth(x, y, z) + rand.nextDouble() * 0.1 - 0.05
   }
 
   override def findBiomePosition(x: Int, z: Int, range: Int, biomes: java.util.List[Biome], random: java.util.Random): BlockPos = null

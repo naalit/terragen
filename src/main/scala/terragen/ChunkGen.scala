@@ -65,10 +65,10 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
     var y: Double = 1
 
     var i = 0
-    def next: Double = {
+    def next(scale: Double): Double = {
       if (i > 63)
         LOGGER.fatal("RAN OUT OF COEFFICIENTS")
-      val n = terr.fBm(x * 0.000004 + COEFX(i), z * 0.000004 + COEFZ(i), 6)
+      val n = terr.fBm(x * scale * 0.00001 + COEFX(i), z * 0.00001 * scale + COEFZ(i), 6)
       i += 1
       n * 0.5 + 0.5
     }
@@ -82,7 +82,7 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
     }
 
     var (plate_dist, plate_height) = terr.plates(x, z)
-    plate_dist += 0.05 * next
+    plate_dist += 0.05 * next(1)
 
     val continent_blend = plate_height.max(0)
     val ocean_blend = (1 - continent_blend).max(0)
@@ -97,26 +97,29 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
 
     // Metamorphic rocks first
     for (rock <- Strata.METAMORPHIC) {
-      place_rock(rock.getSizeAt(next, terr, x, arr.length, z, continent_blend, age), rock.getBlock(red))
+      place_rock(rock.getSizeAt(next(rock.scale), terr, x, arr.length, z, continent_blend, age), rock.getBlock(red))
     }
 
     // Then igneous intrusive
     for (rock <- Strata.IGNEOUS_I) {
       // Age doesn't matter here
-      place_rock(rock.getSizeAt(next, terr, x, arr.length, z, continent_blend, 10), rock.getBlock(red))
+      place_rock(rock.getSizeAt(next(rock.scale), terr, x, arr.length, z, continent_blend, 10), rock.getBlock(red))
     }
 
     // Then igneous extrusive
     for (rock <- Strata.IGNEOUS_E) {
       // The younger the rock, the less of it and the closer it is to plate boundaries/hotspots
-      place_rock((0.5 * rock.age - plate_dist).max((0.05 - plate_dist)).max(0) * rock.getSizeAt(next, terr, x, arr.length, z, continent_blend, age + 0.2), rock.getBlock(red))
+      place_rock((0.5 * rock.age - plate_dist).max((0.05 - plate_dist)).max(0) * rock.getSizeAt(next(rock.scale), terr, x, arr.length, z, continent_blend, age + 0.2), rock.getBlock(red))
     }
 
     // Sedimentary rocks only form where there's sediment - flowing water or wind
-    val sedimentary = terr.smoothstep(0.0, 0.5, (terr.rain(x, arr.length, z) - 0.5).abs)
+    val sedimentary = terr.smoothstep(0.0, 0.5, (terr.rain_smooth(x, arr.length, z) - 0.5).abs)
+    var a = true
     for (rock <- Strata.SEDIMENTARY) {
       // Age doesn't matter here
-      place_rock(sedimentary * rock.getSizeAt(next, terr, x, arr.length, z, continent_blend, 10), rock.getBlock(red))
+      if (a)
+        place_rock(sedimentary * rock.getSizeAt(next(rock.scale), terr, x, arr.length, z, continent_blend, 10), rock.getBlock(red))
+      a = false
     }
 
     // These are a little different - they're always one block replacing a random block we've already placed
@@ -129,27 +132,38 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
       }
     }
 
-    val erosion = (next - 0.2) * 30
+    val erosion = (next(1) - 0.2) * 30
     arr.dropRight(erosion.toInt.max(0))
 
     // Surface
     var b = true
+    var one = false
     for (rock <- Strata.SURFACE) {
-      var s = (rock.getSizeAt(next, terr, x, arr.length, z, continent_blend, age)) * age
+      var s = (rock.getSizeAt(next(rock.scale), terr, x, arr.length, z, continent_blend, age)) * age
+      // Hack so grass doesn't get mixed with podzol and swamp grass on top of each other
+      if (one && rock.max_size == 1)
+        s = 0
+      if (!one && rock.max_size == 1 && s >= 1)
+        one = true
+
+      // Smooth out by making the first surface layer (dirt or sand) fill gap
+      //   between actual height and height with each stratum snapped to 1m 
       if (b && s > 0) {
         b = false
         s += (y - arr.length) * age
       }
-      place_rock(s.ceil, rock.getBlock(red))
+      place_rock(s, rock.getBlock(red))
     }
     // Ocean sand is hardcoded in
     if (b && arr.length < 70 && age > 0.3)
-      place_rock(((y - arr.length) + 2 + next) * age, if (red) Blocks.RED_SAND.getDefaultState else Blocks.SAND.getDefaultState)
+      place_rock(((y - arr.length) + 2 + next(1)) * age, if (red) Blocks.RED_SAND.getDefaultState else Blocks.SAND.getDefaultState)
 
     arr
   }
 
   override def makeBase(worldIn: IWorld, chunkIn: IChunk): Unit = {
+    terr.rand.setFeatureSeed(worldIn.getSeed, chunkIn.getPos.x, chunkIn.getPos.z)
+
     val start_x = chunkIn.getPos().getXStart()
     val start_z = chunkIn.getPos().getZStart()
 

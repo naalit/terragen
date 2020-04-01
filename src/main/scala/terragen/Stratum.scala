@@ -29,7 +29,7 @@ import RockType._
 // Probability 1 means it's present in every column, 0 means none
 // Sizes are y-sizes
 // Continent and ocean refer to whether the rock occurs on that type of plate. Both types include land and water.
-class Stratum(rock: BlockState, val probability: Double, max_size: Double, val ty: RockType) extends ForgeRegistryEntry[Stratum] with Ordered[Stratum] {
+class Stratum(rock: BlockState, val probability: Double, val max_size: Double, val ty: RockType) extends ForgeRegistryEntry[Stratum] with Ordered[Stratum] {
   var age = 0.5
   var min_size: Double = 1
   var in_ocean = true
@@ -38,6 +38,13 @@ class Stratum(rock: BlockState, val probability: Double, max_size: Double, val t
   var conditions = CRange(Temp(-1000), Temp(1000), Rain(-1000), Rain(1000))
   var red: BlockState = null
   var max_age = 20.0
+  var scale = 1.0
+
+  // This is the scale for the noise in X and Z. Defaults to 1
+  def scale(s: Double): Stratum = {
+    scale = s
+    this
+  }
 
   // Sort oldest first
   def compare(that: Stratum) = -age.compare(that.age)

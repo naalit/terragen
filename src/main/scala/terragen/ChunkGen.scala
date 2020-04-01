@@ -128,7 +128,7 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
       if (terr.rand.nextDouble < rock.probability) {
         val idx = 100 - (rock.age * 100).toInt + terr.rand.nextInt(20) - 10
         if (idx > 0 && arr.length > idx)
-          arr(idx) = rock.getBlock(red)
+          arr(arr.length-idx) = rock.getBlock(red)
       }
     }
 
@@ -138,6 +138,9 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
     // Surface
     var b = true
     var one = false
+    // Ocean sand is hardcoded in
+    if (arr.length < 70 && age > 0.3)
+      place_rock(terr.smoothstep(0, 6, 70-arr.length) * (2 + next(1)) * age, if (red) Blocks.RED_SAND.getDefaultState else Blocks.SAND.getDefaultState)
     for (rock <- Strata.SURFACE) {
       var s = (rock.getSizeAt(next(rock.scale), terr, x, arr.length, z, continent_blend, age)) * age
       // Hack so grass doesn't get mixed with podzol and swamp grass on top of each other
@@ -147,16 +150,17 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
         one = true
 
       // Smooth out by making the first surface layer (dirt or sand) fill gap
-      //   between actual height and height with each stratum snapped to 1m 
+      //   between actual height and height with each stratum snapped to 1m
       if (b && s > 0) {
         b = false
         s += (y - arr.length) * age
       }
       place_rock(s, rock.getBlock(red))
     }
-    // Ocean sand is hardcoded in
+    // Smooth with sand if not anything else
     if (b && arr.length < 70 && age > 0.3)
-      place_rock(((y - arr.length) + 2 + next(1)) * age, if (red) Blocks.RED_SAND.getDefaultState else Blocks.SAND.getDefaultState)
+      place_rock((y - arr.length) * age, if (red) Blocks.RED_SAND.getDefaultState else Blocks.SAND.getDefaultState)
+
 
     arr
   }

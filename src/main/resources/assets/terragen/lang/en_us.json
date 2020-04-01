@@ -3,5 +3,14 @@
   "block.terragen.basalt": "Basalt",
   "block.terragen.limestone": "Limestone",
   "block.terragen.marble": "Rough Marble",
-  "block.terragen.leaf": "Leaf"
+  "block.terragen.brazil_nut_leaf": "Brazil Nut Leaf",
+  "block.terragen.oak_leaf": "Oak Leaf",
+  "block.terragen.birch_leaf": "Birch Leaf",
+  "block.terragen.mulga_leaf": "Mulga Leaf",
+  "block.terragen.spruce_leaf": "Spruce Leaf",
+  "block.terragen.brazil_nut_sapling": "Brazil Nut Sapling",
+  "block.terragen.oak_sapling": "Oak Sapling",
+  "block.terragen.birch_sapling": "Birch Sapling",
+  "block.terragen.mulga_sapling": "Mulga Sapling",
+  "block.terragen.spruce_sapling": "Spruce Sapling"
 }

@@ -37,7 +37,7 @@ class NullBiome(terr: Terrain) extends Biome(new Biome.Builder().surfaceBuilder(
   val arid_entries = List(new SpawnListEntry(EntityType.ZOMBIE, 15, 4, 4), new SpawnListEntry(EntityType.HUSK, 80, 4, 4))
   val llama_entry =  new SpawnListEntry(EntityType.LLAMA, 100, 4, 6)
   val turtle_entry = new SpawnListEntry(EntityType.TURTLE, 5, 2, 5)
-  val jungle_entries = List(new SpawnListEntry(EntityType.PANDA, 1, 1, 2), new SpawnListEntry(EntityType.PARROT, 40, 1, 2))
+  val jungle_entries = List(new SpawnListEntry(EntityType.PANDA, 1, 1, 2), new SpawnListEntry(EntityType.PARROT, 40, 1, 2), new SpawnListEntry(EntityType.OCELOT, 1, 1, 1))
 
   val med_water = List(new SpawnListEntry(EntityType.DOLPHIN, 1, 1, 2), new SpawnListEntry(EntityType.COD, 10, 3, 6))
   val cold_water = List(new SpawnListEntry(EntityType.SALMON, 15, 1, 5), new SpawnListEntry(EntityType.COD, 15, 3, 6))
@@ -64,7 +64,6 @@ class NullBiome(terr: Terrain) extends Biome(new Biome.Builder().surfaceBuilder(
 
   @SubscribeEvent
   def handle_spawn(evt: WorldEvent.PotentialSpawns) {
-    return
     evt.getType match {
       case EntityClassification.MONSTER => {
         val r = terr.rain(evt.getPos.getX, evt.getPos.getY, evt.getPos.getZ)

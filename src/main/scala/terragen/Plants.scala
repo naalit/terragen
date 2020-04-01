@@ -85,7 +85,7 @@ case class DoublePlant(override val cover: Double, override val density: Double,
 class Tree(override val cover: Double, override val density: Double, crange: HRange, ground: Set[BlockState], lheight: Int, hheight: Int, trunk: BlockState, lrad: Int, hrad: Int, leaf: BlockState, ni: NI) extends Plant(cover, density, ni, false) {
   override def check(rain: Rain, temp: Temp, height: Double, below: BlockState): Boolean = crange.check(rain, temp, height) && ground.contains(below)
 
-  def make_trunk(pos: BlockPos, world: IWorld, rand: SharedSeedRandom, height_mod: Int): ArrayStack[BlockPos] = {
+  def make_trunk(pos: BlockPos, world: IWorld, rand: java.util.Random, height_mod: Int): ArrayStack[BlockPos] = {
     val height = lheight + rand.nextInt(hheight - lheight) + height_mod
 
     for (y <- pos.getY to pos.getY + height) {
@@ -95,7 +95,7 @@ class Tree(override val cover: Double, override val density: Double, crange: HRa
     ArrayStack(new BlockPos(pos.getX, pos.getY + height, pos.getZ))
   }
 
-  def make_leaves(ground_pos: BlockPos, pos: BlockPos, world: IWorld, rand: SharedSeedRandom): Unit = {
+  def make_leaves(ground_pos: BlockPos, pos: BlockPos, world: IWorld, rand: java.util.Random): Unit = {
     val rad    = if (hrad > lrad) lrad + rand.nextInt(hrad    - lrad   ) else lrad
     var rad2: Double = rad*rad
     val drad = hrad - lrad
@@ -111,20 +111,22 @@ class Tree(override val cover: Double, override val density: Double, crange: HRa
      }
   }
 
-  override def place(pos: BlockPos, world: IWorld, terr: Terrain): Unit = {
-    val top_poss = make_trunk(pos, world, terr.rand, 0)
+  def place(pos: BlockPos, world: IWorld, rand: java.util.Random): Unit = {
+    val top_poss = make_trunk(pos, world, rand, 0)
 
     for (p <- top_poss)
-      make_leaves(pos, p, world, terr.rand)
+      make_leaves(pos, p, world, rand)
 
     // TODO roots
   }
+
+  override def place(pos: BlockPos, world: IWorld, terr: Terrain): Unit = place(pos, world, terr.rand)
 }
 
 class SpruceTree(override val cover: Double, override val density: Double, crange: HRange, ground: Set[BlockState], lheight: Int, hheight: Int, trunk: BlockState, lrad: Int, hrad: Int, leaf: BlockState, ni: NI)
   extends Tree(cover, density, crange, ground, lheight, hheight, trunk, lrad, hrad, leaf, ni) {
 
-  override def make_leaves(ground_pos: BlockPos, top_pos: BlockPos, world: IWorld, rand: SharedSeedRandom): Unit = {
+  override def make_leaves(ground_pos: BlockPos, top_pos: BlockPos, world: IWorld, rand: java.util.Random): Unit = {
     val rad    = lrad    + rand.nextInt(hrad    - lrad   )
 
     val start_y = ground_pos.getY + 3
@@ -153,13 +155,13 @@ class SpruceTree(override val cover: Double, override val density: Double, crang
 class BareTree(override val cover: Double, override val density: Double, crange: HRange, ground: Set[BlockState], lheight: Int, hheight: Int, trunk: BlockState, ni: NI)
   extends Tree(cover, density, crange, ground, lheight, hheight, trunk, 0, 0, Blocks.AIR.getDefaultState, ni) {
 
-  override def make_leaves(ground_pos: BlockPos, top_pos: BlockPos, world: IWorld, rand: SharedSeedRandom): Unit = {}
+  override def make_leaves(ground_pos: BlockPos, top_pos: BlockPos, world: IWorld, rand: java.util.Random): Unit = {}
 }
 
 class SplitTree(override val cover: Double, override val density: Double, crange: HRange, ground: Set[BlockState], lheight: Int, hheight: Int, trunk: BlockState, lrad: Int, hrad: Int, leaf: BlockState, bend_fac: Double, split_fac: Double, ni: NI)
   extends Tree(cover, density, crange, ground, lheight, hheight, trunk, lrad, hrad, leaf, ni) {
 
-  override def make_trunk(pos: BlockPos, world: IWorld, rand: SharedSeedRandom, height_mod: Int): ArrayStack[BlockPos] = {
+  override def make_trunk(pos: BlockPos, world: IWorld, rand: java.util.Random, height_mod: Int): ArrayStack[BlockPos] = {
     val height = lheight + rand.nextInt(hheight - lheight) + height_mod
     var x = pos.getX
     var z = pos.getZ
@@ -273,14 +275,20 @@ object S {
 }
 
 object Plants {
+  // Brazil nut tree
+  val BRAZIL_TREE_BIG = new Tree(0.2, 0.1, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 30, 40, Blocks.JUNGLE_LOG.getDefaultState(), 5, 7, TBlocks.BRAZIL_LEAF.getDefaultState, NI.ALL)
+  // Young Brazil nut
+  val BRAZIL_TREE_YOUNG = new Tree(0.1, 0.05, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 2, 5, Blocks.JUNGLE_LOG.getDefaultState, 1, 2, TBlocks.BRAZIL_LEAF.getDefaultState, NI.ALL)
+  val OAK_TREE = new SplitTree(0.2, 0.01, CRange(T.TEMPERATE, T.TROPIC, R.NORMAL, R.WET), S.DIRT_GRASS, 8, 12, Blocks.OAK_LOG.getDefaultState, 3, 6, TBlocks.OAK_LEAF.getDefaultState, 0.2, 0.2, NI(0.1, 0.9))
+  // Dark oak; I'm saying these are the bigger oaks
+  val DARK_OAK_TREE = new SplitTree(0.2, 0.01, CRange(T.TEMPERATE, T.TROPIC, R.NORMAL, R.WET), S.DIRT_GRASS, 11, 15, Blocks.DARK_OAK_LOG.getDefaultState, 4, 7, TBlocks.OAK_LEAF.getDefaultState, 0.2, 0.2, NI(0.1, 0.9))
+  val BIRCH_TREE = new Tree(0.2, 0.01, CRange(Temp(2), Temp(12), R.NORMAL, R.WET), S.DIRT_GRASS, 7, 16, Blocks.BIRCH_LOG.getDefaultState, 2, 5, TBlocks.BIRCH_LEAF.getDefaultState, NI(0, 0.4))
+  val SPRUCE_TREE = new SpruceTree(0.4, 0.05, CRange(T.SUBPOLAR, Temp(10), R.NORMAL, R.DAMP), S.DIRT_GRASS, 8, 40, Blocks.SPRUCE_LOG.getDefaultState, 2, 4, TBlocks.SPRUCE_LEAF.getDefaultState, NI(0.3, 1))
+  val MULGA_TREE = new SplitTree(0.2, 0.002, CRange(T.TEMPERATE, T.ANY, Rain(0.1), R.NORMAL), S.DIRT_GRASS, 3, 7, Blocks.ACACIA_LOG.getDefaultState, 2, 5, TBlocks.MULGA_LEAF.getDefaultState, 0.3, 0.1, NI(0.2, 1))
+
   val ALL = Array[Plant](
-    // All the trees have persistent leaves because I'm making the canopies larger than Minecraft's
-    // Brazil nut tree
-    new Tree(0.2, 0.1, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 30, 40, Blocks.JUNGLE_LOG.getDefaultState(), 5, 7, TBlocks.LEAF.getDefaultState, NI.ALL)
-      .setRegistryName("brazil_nut"),
-    // Young Brazil nut
-    new Tree(0.1, 0.05, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 2, 5, Blocks.JUNGLE_LOG.getDefaultState, 1, 2, TBlocks.LEAF.getDefaultState, NI.ALL)
-      .setRegistryName("young_brazil_nut"),
+    BRAZIL_TREE_BIG.setRegistryName("brazil_nut"),
+    BRAZIL_TREE_YOUNG.setRegistryName("young_brazil_nut"),
     // Bamboo
     new BareTree(0.1, 0.05, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 2, 18, Blocks.BAMBOO.getDefaultState, NI(0.4, 1))
       .setRegistryName("bamboo"),
@@ -299,23 +307,15 @@ object Plants {
 
     // Savannah
     // I'm making this an Australian mulga
-    new SplitTree(0.2, 0.002, CRange(T.TEMPERATE, T.ANY, Rain(0.1), R.NORMAL), S.DIRT_GRASS, 3, 7, Blocks.ACACIA_LOG.getDefaultState, 2, 5, TBlocks.LEAF.getDefaultState, 0.3, 0.1, NI(0.2, 1))
+    MULGA_TREE
       .setRegistryName("mulga_tree"),
     DoublePlant(0.4, 0.4, Blocks.TALL_GRASS.asInstanceOf[DoublePlantBlock], CRange(T.TEMPERATE, T.ANY, R.DRY, R.DAMP), S.DIRT_GRASS, NI.ALL, false)
       .setRegistryName("tall_grass"),
 
-    // Birch tree
-    new Tree(0.2, 0.01, CRange(Temp(2), Temp(12), R.NORMAL, R.WET), S.DIRT_GRASS, 7, 16, Blocks.BIRCH_LOG.getDefaultState, 2, 5, TBlocks.LEAF.getDefaultState, NI(0, 0.4))
-      .setRegistryName("birch"),
-    // Oak tree
-    new SplitTree(0.2, 0.01, CRange(T.TEMPERATE, T.TROPIC, R.NORMAL, R.WET), S.DIRT_GRASS, 8, 12, Blocks.OAK_LOG.getDefaultState, 3, 6, TBlocks.LEAF.getDefaultState, 0.2, 0.2, NI(0.1, 0.9))
-      .setRegistryName("oak"),
-    // Dark oak; I'm saying these are the bigger oaks
-    new SplitTree(0.2, 0.01, CRange(T.TEMPERATE, T.TROPIC, R.NORMAL, R.WET), S.DIRT_GRASS, 11, 15, Blocks.DARK_OAK_LOG.getDefaultState, 4, 7, TBlocks.LEAF.getDefaultState, 0.2, 0.2, NI(0.1, 0.9))
-      .setRegistryName("dark_oak"),
-    // Spruce
-    new SpruceTree(0.4, 0.05, CRange(T.SUBPOLAR, Temp(10), R.NORMAL, R.DAMP), S.DIRT_GRASS, 8, 40, Blocks.SPRUCE_LOG.getDefaultState, 2, 4, TBlocks.LEAF.getDefaultState, NI(0.3, 1))
-      .setRegistryName("spruce"),
+    BIRCH_TREE.setRegistryName("birch"),
+    OAK_TREE.setRegistryName("oak"),
+    DARK_OAK_TREE.setRegistryName("dark_oak"),
+    SPRUCE_TREE.setRegistryName("spruce"),
 
     FlowerPlant(0.05, 0.05, S.FLOWERS, CRange(T.TEMPERATE, T.ANY, R.NORMAL, R.ANY), S.DIRT_GRASS, NI.ALL)
       .setRegistryName("flower"),

@@ -32,13 +32,23 @@ import org.apache.logging.log4j.Logger
 
 object TBlocks {
   // Basalt isn't quite as hard as most stone
-  val BASALT = new Block(Block.Properties.create(Material.ROCK, MaterialColor.OBSIDIAN).hardnessAndResistance(1.2F, 5.0F))
+  val BASALT = new Block(Block.Properties.create(Material.ROCK, MaterialColor.OBSIDIAN).hardnessAndResistance(1.2F, 5.0F)).setRegistryName("basalt")
   // Neither is limestone
-  val LIMESTONE = new Block(Block.Properties.create(Material.ROCK, MaterialColor.SAND).hardnessAndResistance(1.2F, 5.0F))
+  val LIMESTONE = new Block(Block.Properties.create(Material.ROCK, MaterialColor.SAND).hardnessAndResistance(1.2F, 5.0F)).setRegistryName("limestone")
   // But marble's harder
-  val MARBLE = new Block(Block.Properties.create(Material.ROCK, MaterialColor.QUARTZ).hardnessAndResistance(1.7F, 7.0F))
-  // Leaves ticking and updating often freezes the game near rainforests
-  val LEAF = new SimpleLeaf()
+  val MARBLE = new Block(Block.Properties.create(Material.ROCK, MaterialColor.QUARTZ).hardnessAndResistance(1.7F, 7.0F)).setRegistryName("marble")
+
+  val BRAZIL_LEAF = new LeafBlock().setRegistryName("brazil_nut_leaf")
+  val OAK_LEAF = new LeafBlock().setRegistryName("oak_leaf")
+  val BIRCH_LEAF = new LeafBlock().setRegistryName("birch_leaf")
+  val MULGA_LEAF = new LeafBlock().setRegistryName("mulga_leaf")
+  val SPRUCE_LEAF = new LeafBlock().setRegistryName("spruce_leaf")
+
+  val BRAZIL_SAPLING = new Sapling(Array(Plants.BRAZIL_TREE_BIG, Plants.BRAZIL_TREE_YOUNG)).setRegistryName("brazil_nut_sapling")
+  val OAK_SAPLING = new Sapling(Array(Plants.OAK_TREE, Plants.DARK_OAK_TREE)).setRegistryName("oak_sapling")
+  val BIRCH_SAPLING = new Sapling(Array(Plants.BIRCH_TREE)).setRegistryName("birch_sapling")
+  val MULGA_SAPLING = new Sapling(Array(Plants.MULGA_TREE)).setRegistryName("mulga_sapling")
+  val SPRUCE_SAPLING = new Sapling(Array(Plants.SPRUCE_TREE)).setRegistryName("spruce_sapling")
 }
 
 @Mod("terragen")
@@ -46,6 +56,8 @@ class Terragen extends WorldType("terragen") {
   val LOGGER = LogManager.getLogger()
 
   val terr = new Terrain
+
+  def item(block: Block, group: ItemGroup): Item = new BlockItem(block, new Item.Properties().group(group)).setRegistryName(block.getRegistryName)
 
   FMLJavaModLoadingContext.get().getModEventBus().addListener(commonSetup)
   FMLJavaModLoadingContext.get().getModEventBus().addListener((evt: RegistryEvent.Register[Biome]) => {
@@ -58,20 +70,38 @@ class Terragen extends WorldType("terragen") {
       }
       if (evt.getName().toString().equals("minecraft:block")) {
         evt.asInstanceOf[RegistryEvent.Register[Block]].getRegistry.registerAll(
-          TBlocks.BASALT.setRegistryName("terragen:basalt"),
-          TBlocks.LIMESTONE.setRegistryName("terragen:limestone"),
-          TBlocks.MARBLE.setRegistryName("terragen:marble"),
-          TBlocks.LEAF.setRegistryName("terragen:leaf")
+          TBlocks.BASALT,
+          TBlocks.LIMESTONE,
+          TBlocks.MARBLE,
+          TBlocks.BRAZIL_LEAF,
+          TBlocks.OAK_LEAF,
+          TBlocks.BIRCH_LEAF,
+          TBlocks.MULGA_LEAF,
+          TBlocks.SPRUCE_LEAF,
+          TBlocks.BRAZIL_SAPLING,
+          TBlocks.OAK_SAPLING,
+          TBlocks.BIRCH_SAPLING,
+          TBlocks.MULGA_SAPLING,
+          TBlocks.SPRUCE_SAPLING
         )
         LOGGER.debug("Registered blocks")
       }
 
       if (evt.getName().toString().equals("minecraft:item")) {
         evt.asInstanceOf[RegistryEvent.Register[Item]].getRegistry.registerAll(
-          new BlockItem(TBlocks.BASALT, new Item.Properties().group(ItemGroup.BUILDING_BLOCKS)).setRegistryName("terragen:basalt"),
-          new BlockItem(TBlocks.LIMESTONE, new Item.Properties().group(ItemGroup.BUILDING_BLOCKS)).setRegistryName("terragen:limestone"),
-          new BlockItem(TBlocks.MARBLE, new Item.Properties().group(ItemGroup.BUILDING_BLOCKS)).setRegistryName("terragen:marble"),
-          new BlockItem(TBlocks.LEAF, new Item.Properties().group(ItemGroup.BUILDING_BLOCKS)).setRegistryName("terragen:leaf")
+          item(TBlocks.BASALT, ItemGroup.BUILDING_BLOCKS),
+          item(TBlocks.LIMESTONE, ItemGroup.BUILDING_BLOCKS),
+          item(TBlocks.MARBLE, ItemGroup.BUILDING_BLOCKS),
+          item(TBlocks.BRAZIL_LEAF, ItemGroup.DECORATIONS),
+          item(TBlocks.OAK_LEAF, ItemGroup.DECORATIONS),
+          item(TBlocks.BIRCH_LEAF, ItemGroup.DECORATIONS),
+          item(TBlocks.MULGA_LEAF, ItemGroup.DECORATIONS),
+          item(TBlocks.SPRUCE_LEAF, ItemGroup.DECORATIONS),
+          item(TBlocks.BRAZIL_SAPLING, ItemGroup.DECORATIONS),
+          item(TBlocks.OAK_SAPLING, ItemGroup.DECORATIONS),
+          item(TBlocks.BIRCH_SAPLING, ItemGroup.DECORATIONS),
+          item(TBlocks.MULGA_SAPLING, ItemGroup.DECORATIONS),
+          item(TBlocks.SPRUCE_SAPLING, ItemGroup.DECORATIONS)
         )
         LOGGER.debug("Registered blocks")
       }
@@ -115,7 +145,7 @@ class Terragen extends WorldType("terragen") {
       FMLJavaModLoadingContext.get.getModEventBus.addListener((evt: net.minecraftforge.client.event.ColorHandlerEvent.Block) => {
             evt.getBlockColors.register(
               (state, reader, pos, i) => if (reader != null && pos != null) BiomeColors.getFoliageColor(reader, pos) else FoliageColors.getDefault(),
-              TBlocks.LEAF)
+              TBlocks.BRAZIL_LEAF, TBlocks.OAK_LEAF, TBlocks.BIRCH_LEAF, TBlocks.MULGA_LEAF, TBlocks.SPRUCE_LEAF)
             LOGGER.info("Registered leaf colors")
           }
       )

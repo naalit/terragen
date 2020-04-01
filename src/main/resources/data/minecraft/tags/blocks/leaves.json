@@ -1,4 +1,4 @@
 {
   "replace": false,
-  "values": ["terragen:leaf"]
+  "values": ["terragen:brazil_nut_leaf", "terragen:birch_leaf", "terragen:oak_leaf", "terragen:spruce_leaf", "terragen:mulga_leaf"]
 }

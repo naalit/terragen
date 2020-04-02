@@ -1,5 +1,6 @@
 package terragen
 
+import terragen.block._
 import net.minecraft.block.{Block, Blocks, BlockState}
 import net.minecraft.state.properties.BlockStateProperties
 import net.minecraft.util.math.BlockPos
@@ -36,14 +37,18 @@ case class Rain(x: Double) {
 abstract class Plant(val cover: Double, val density: Double, val noise_interval: NI, val water: Boolean) extends ForgeRegistryEntry[Plant] {
   def check(rain: Rain, temp: Temp, height: Double, below: BlockState): Boolean
   def place(pos: BlockPos, world: IWorld, rand: Terrain): Unit
+
+  def register(name: String): Plant = {
+    Plants.ALL.push(this.setRegistryName(name))
+    this
+  }
 }
 
 case class HRange(tlow: Temp, thigh: Temp, rlow: Rain, rhigh: Rain, hlow: Double, hhigh: Double) {
   def check(rain: Rain, temp: Temp, height: Double): Boolean = rain >= rlow && rain <= rhigh && temp >= tlow && temp <= thigh && height >= hlow && height <= hhigh
 
-  // The > is kind of a hack so podzol doesn't appear on top of grass
-  def check(rain: Rain): Boolean = rain > rlow && rain <= rhigh
-  def check(temp: Temp): Boolean = temp > tlow && temp <= thigh
+  def check(rain: Rain): Boolean = rain >= rlow && rain <= rhigh
+  def check(temp: Temp): Boolean = temp >= tlow && temp <= thigh
   def check(height: Double): Boolean = height >= hlow && height <= hhigh
 
   def has_t: Boolean = (tlow > T.POLAR) || (thigh < T.ANY)
@@ -275,6 +280,8 @@ object S {
 }
 
 object Plants {
+  def force_init() = {}
+
   // Brazil nut tree
   val BRAZIL_TREE_BIG = new Tree(0.2, 0.1, CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY), S.DIRT_GRASS, 30, 40, Blocks.JUNGLE_LOG.getDefaultState(), 5, 7, TBlocks.BRAZIL_LEAF.getDefaultState, NI.ALL)
   // Young Brazil nut
@@ -286,7 +293,8 @@ object Plants {
   val SPRUCE_TREE = new SpruceTree(0.4, 0.05, CRange(T.SUBPOLAR, Temp(10), R.NORMAL, R.DAMP), S.DIRT_GRASS, 8, 40, Blocks.SPRUCE_LOG.getDefaultState, 2, 4, TBlocks.SPRUCE_LEAF.getDefaultState, NI(0.3, 1))
   val MULGA_TREE = new SplitTree(0.2, 0.002, CRange(T.TEMPERATE, T.ANY, Rain(0.1), R.NORMAL), S.DIRT_GRASS, 3, 7, Blocks.ACACIA_LOG.getDefaultState, 2, 5, TBlocks.MULGA_LEAF.getDefaultState, 0.3, 0.1, NI(0.2, 1))
 
-  val ALL = Array[Plant](
+  // Plant.register() adds plants to here, from there we register them with Forge
+  val ALL = ArrayStack[Plant](
     BRAZIL_TREE_BIG.setRegistryName("brazil_nut"),
     BRAZIL_TREE_YOUNG.setRegistryName("young_brazil_nut"),
     // Bamboo

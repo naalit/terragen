@@ -1,4 +1,4 @@
-package terragen
+package terragen.block
 
 import net.minecraft.block._
 import net.minecraft.state._
@@ -11,6 +11,7 @@ import net.minecraftforge.api.distmarker.{OnlyIn, Dist}
 import java.util.Random
 import net.minecraft.particles.ParticleTypes
 import net.minecraft.entity.EntityType
+import net.minecraft.item.ItemGroup
 
 object LeafBlock {
   val DISTANCE = IntegerProperty.create("distance", 0, 31)
@@ -22,7 +23,11 @@ import LeafBlock._
 // Like a vanilla LeavesBlock, but:
 // - Distance goes up to 31, allowing larger canopies
 // - Distance is only updated on random ticks and doesn't immediately chain, so decay takes longer but is much less performance hungry
-class LeafBlock extends Block(Block.Properties.create(Material.LEAVES).hardnessAndResistance(0.2F).sound(SoundType.PLANT).tickRandomly()) {
+// Its BlockRegistrizer implementation puts it in Decorations and registers it to recieve foliage colors by default
+class LeafBlock extends Block(Block.Properties.create(Material.LEAVES).hardnessAndResistance(0.2F).sound(SoundType.PLANT).tickRandomly()) with BlockRegistrizer {
+  this.foliage()
+  this.group(ItemGroup.DECORATIONS)
+
   var max_dist = 31
 
   setDefaultState(stateContainer.getBaseState.`with`[Integer, Integer](DISTANCE, 0).`with`[java.lang.Boolean, java.lang.Boolean](PERSISTENT, false))

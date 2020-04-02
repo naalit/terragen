@@ -1,5 +1,6 @@
 package terragen
 
+import terragen.block._
 import net.minecraft.block.{BlockState, Blocks}
 import net.minecraftforge.registries.ForgeRegistryEntry
 import scala.collection.mutable.ArrayStack
@@ -39,6 +40,11 @@ class Stratum(rock: BlockState, val probability: Double, val max_size: Double, v
   var red: BlockState = null
   var max_age = 20.0
   var scale = 1.0
+
+  def register(name: String): Stratum = {
+    Strata.TO_REGISTER.push(this.setRegistryName(name))
+    this
+  }
 
   // This is the scale for the noise in X and Z. Defaults to 1
   def scale(s: Double): Stratum = {
@@ -121,7 +127,10 @@ class Stratum(rock: BlockState, val probability: Double, val max_size: Double, v
 }
 
 object Strata {
-  var TO_REGISTER = Array(
+  def force_init() = {}
+
+  // Stratum.register() adds it here automatically
+  var TO_REGISTER = ArrayStack(
     // Currently our one and only metamorphic rock
     new Stratum(TBlocks.MARBLE.getDefaultState, 0.3, 20, RockType.METAMORPHIC).continent.age(0.6).setRegistryName("marble"),
 

@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:granite",
+    "minecraft:diorite",
+    "minecraft:andesite",
+    "terragen:limestone",
+    "terragen:basalt",
+    "terragen:marble"
+  ]
+}

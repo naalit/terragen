@@ -1,8 +1,10 @@
-package terragen
+package terragen.block
 
+import terragen._
 import net.minecraft.block._
 import net.minecraft.block.material._
 import net.minecraft.state._
+import net.minecraft.item.ItemGroup
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.{IBlockReader, World}
 import java.util.Random
@@ -16,7 +18,10 @@ object Sapling {
 
 import Sapling._
 
-class Sapling(trees: Array[Tree]) extends BushBlock(Block.Properties.create(Material.ORGANIC).tickRandomly()) with IGrowable {
+// Puts itself it Decorations by default
+class Sapling(trees: Array[Tree]) extends BushBlock(Block.Properties.create(Material.ORGANIC).tickRandomly()) with IGrowable with BlockRegistrizer {
+  group(ItemGroup.DECORATIONS)
+
   assert(trees.length > 0, "Cannot create sapling with no trees")
   setDefaultState(stateContainer.getBaseState.`with`[Integer, Integer](STAGE, 0))
 

@@ -143,6 +143,7 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
       place_rock(terr.smoothstep(0, 6, 70-arr.length) * (2 + next(1)) * age, if (red) Blocks.RED_SAND.getDefaultState else Blocks.SAND.getDefaultState)
     for (rock <- Strata.SURFACE) {
       var s = (rock.getSizeAt(next(rock.scale), terr, x, arr.length, z, continent_blend, age)) * age
+      s = s.ceil
       // Hack so grass doesn't get mixed with podzol and swamp grass on top of each other
       if (one && rock.max_size == 1)
         s = 0

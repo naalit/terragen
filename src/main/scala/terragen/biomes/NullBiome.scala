@@ -31,12 +31,11 @@ import scala.collection.JavaConverters._
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
+// If we say it's extreme hills rain and snow change based on temperature
 class NullBiome(terr: Terrain) extends Biome(new Biome.Builder().surfaceBuilder(SurfaceBuilder.DEFAULT, SurfaceBuilder.AIR_CONFIG).precipitation(Biome.RainType.RAIN).category(Biome.Category.EXTREME_HILLS).depth(0.125f).scale(0.05f).temperature(0.2f).downfall(0.5f).waterColor(4159204).waterFogColor(329011).parent(null)) {
   val LOGGER = LogManager.getLogger()
 
-  // Default caves for now
-  // They can't actually carve our custom stone types, so we'll need to replace them at some point
-  DefaultBiomeFeatures.addCarvers(this)
+  addCarver(GenerationStage.Carving.AIR, Biome.createCarver(new TCaveCarver(ProbabilityConfig.deserialize(_)), new ProbabilityConfig(0.14285715F)))
 
   val zombie_entry = new SpawnListEntry(EntityType.ZOMBIE, 95, 4, 4)
   val arid_entries = List(new SpawnListEntry(EntityType.ZOMBIE, 15, 4, 4), new SpawnListEntry(EntityType.HUSK, 80, 4, 4))

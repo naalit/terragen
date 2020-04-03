@@ -14,6 +14,8 @@ object TBlocks {
   // But marble's harder
   val MARBLE = new BasicBlock(Block.Properties.create(Material.ROCK, MaterialColor.QUARTZ).hardnessAndResistance(1.7F, 7.0F)).register("marble")
 
+  val MOLTEN_STONE = new MoltenStone().register("molten_stone")
+
   val BRAZIL_LEAF = new LeafBlock().register("brazil_nut_leaf")
   val OAK_LEAF = new LeafBlock().register("oak_leaf")
   val BIRCH_LEAF = new LeafBlock().register("birch_leaf")

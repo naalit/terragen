@@ -109,8 +109,13 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
     // Then igneous extrusive
     for (rock <- Strata.IGNEOUS_E) {
       // The younger the rock, the less of it and the closer it is to plate boundaries/hotspots
-      place_rock((0.5 * rock.age - plate_dist).max((0.05 - plate_dist)).max(0) * rock.getSizeAt(next(rock.scale), terr, x, arr.length, z, continent_blend, age + 0.2), rock.getBlock(red))
+      place_rock((0.5 * rock.age - plate_dist.min(hotspot_dist)).max(0) * rock.getSizeAt(next(rock.scale), terr, x, arr.length, z, continent_blend, age + 0.2), rock.getBlock(red))
     }
+
+    // Kind of volcanoes in young rock
+    val lava_height = (0.5 - age * 0.5 - 0.4) / 0.1 * (1 + next(1)) * 60
+    for (i <- 2 to lava_height.toInt.min(arr.length-3))
+      arr(arr.length-i) = Blocks.LAVA.getDefaultState
 
     // Sedimentary rocks only form where there's sediment - flowing water or wind
     val sedimentary = terr.smoothstep(0.0, 0.5, (terr.rain_smooth(x, arr.length, z) - 0.5).abs)
@@ -127,7 +132,7 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
     for (rock <- Strata.RANDOM) {
       if (terr.rand.nextDouble < rock.probability) {
         val idx = 100 - (rock.age * 100).toInt + terr.rand.nextInt(20) - 10
-        if (idx > 0 && arr.length > idx)
+        if (idx > 1 && arr.length > idx)
           arr(arr.length-idx) = rock.getBlock(red)
       }
     }

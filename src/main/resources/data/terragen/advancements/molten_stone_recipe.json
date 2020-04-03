@@ -1,0 +1,19 @@
+{
+  "criteria": {
+    "has_furnace": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "item": "minecraft:blast_furnace"
+          }
+        ]
+      }
+    }
+  },
+  "rewards": {
+    "recipes": [
+      "terragen:molten_stone"
+    ]
+  }
+}

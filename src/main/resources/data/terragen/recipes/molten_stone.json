@@ -1,0 +1,9 @@
+{
+  "type": "blasting",
+  "ingredient": {
+    "tag": "forge:stone"
+  },
+  "result": "terragen:molten_stone",
+  "experience": 0.2,
+  "cookingtime": 400
+}

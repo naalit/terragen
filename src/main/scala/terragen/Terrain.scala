@@ -55,7 +55,7 @@ class Terrain extends BiomeProvider {
     var s = 130.0
 
     for (_ <- 0 until octaves) {
-      acc += gen.getValue(x * s, z * s) * a //hash(x * s, z * s, 19.08) * a
+      acc += gen.getValue(x * s, z * s) * a
       a *= omega
       s *= 1.99
     }
@@ -91,63 +91,43 @@ class Terrain extends BiomeProvider {
     min_d2
   }
 
-  // Returns (distance to border, continent height)
+  def mix(x: Double, y: Double, a: Double): Double = x*(1-a)+y*a
+
+  // Returns (distance to border, blend between 1=continent 0=ocean)
   def voronoi(x: Double, z: Double): (Double, Double) = {
+    // Smoothing factor
+    val w = 0.2
     val nx = Math.floor(x)
     val nz = Math.floor(z)
     val fx = x - nx
     val fz = z - nz
 
-    var mbx = 0
-    var mbz = 0
-    var mrx = 0.0
-    var mrz = 0.0
-
-    var min_d2 = 1000.0
-
-    var mh = 0.0
+    var min_d = 8.0
+    var min_h = 0.0
 
     for (i <- -1 to 1; j <- -1 to 1) {
       val rx = i + hash(j + nz, i + nx, 1234) - fx
       val rz = j + hash(j + nz, i + nx, 9823) - fz
-      val d2 = rx * rx + rz * rz
+      val d  = Math.sqrt(rx * rx + rz * rz)
 
-      // Continent with random width
-      var h_base = hash(j + nz, i + nx, -3287) + 0.15
+      var h = smoothstep(0.5, 0.5, hash(j + nz, i + nx, -3287))
       // Force a continent near spawn so you don't spawn in the middle of the sea
-      if (i + nx == 0 && j + nz == 0)
-        h_base -= 0.5
-      val h = smoothstep(h_base, h_base + 0.06, 1 - Math.sqrt(d2))
 
-      mh = mh.max(h)
-      if (d2 < min_d2) {
-        min_d2 = d2
-        mbx = i
-        mbz = j
-        mrx = rx
-        mrz = rz
-      }
+      var b = (0.5+0.5*(min_d-d)/w).min(1).max(0)
+      var c = b*(1-b)*w/(1+3*w)
+
+      min_d = mix(min_d, d, b) - c
+      min_h = mix(min_h, h, b) - c
     }
 
-    for (i <- -2 to 2; j <- -2 to 2) {
-      val bx = mbx + i
-      val bz = mbz + j
-      val rx = bx + hash(bz + nz, bx + nx, 1234) - fx
-      val rz = bz + hash(bz + nz, bx + nx, 9823) - fz
-
-      val d_point = Math.sqrt(Math.pow(rx - mrx, 2) + Math.pow(rz - mrz, 2))
-      val d2_line = 0.5 * ((mrx + rx) * (rx - mrx) / d_point + (mrz + rz) * (rz - mrz) / d_point)
-
-      if (Math.pow(mrx - rx, 2) + Math.pow(mrz - rz, 2) > 0.000001)
-        min_d2 = min_d2.min(d2_line)
-    }
-
-    (min_d2, mh)
+    (min_d, min_h)
   }
 
+  val SCALE = 0.0003
+
   def plates(x: Int, z: Int): (Double, Double) = {
-    val px = x*0.0001
-    val pz = z*0.0001
+    val px = x*SCALE
+    val pz = z*SCALE
 
     voronoi(px * 2, pz * 2)
   }
@@ -158,8 +138,8 @@ class Terrain extends BiomeProvider {
   val pole_cz = rand.nextDouble()
 
   def temp(x: Int, y:Int, z: Int): Double = {
-    val px = x*0.0001
-    val pz = z*0.0001
+    val px = x*SCALE
+    val pz = z*SCALE
 
     val (plate_dist, plate_height) = voronoi(px * 2, pz * 2)
     // Fake poles with Voronoi - pole_dist is toward poles - away from cell edges
@@ -168,30 +148,30 @@ class Terrain extends BiomeProvider {
     val h = y / 80
 
     // in Celsius
-    // Formula: 15+\left(4-4h^{8}+70\left(l-0.3\right)+5x\right)\left(0.5+dp\right)
+    // Formula: 15+\left(4-4\max\left(h-1,0\right)^{8}+70\left(z-0.3\right)+5x\right)\left(0.5+p\right)
     val t = (
       15 + // Base temperature
-      (4-4*Math.pow(h, 8) // Colder higher up
+      (4-4*Math.pow((h-1).max(0), 8) // Colder higher up
        +70*(pole_dist-0.3) // Colder at poles
        +5*fBm(243.23+px*0.01, 987.96+pz*0.01, 6)) // Noise
-      * (0.5+plate_dist*plate_height) // Water regulates the temperature
+      * (0.5+0.5*plate_dist*plate_height) // Water regulates the temperature
     )
-    t + rand.nextDouble() * 4 - 2
+    t + rand.nextDouble() * 2 - 1
   }
 
   // Without random blend
   def rain_smooth(x: Int, y: Int, z: Int): Double = {
-    val px = x*0.0001
-    val pz = z*0.0001
+    val px = x*SCALE
+    val pz = z*SCALE
 
     val (plate_dist, plate_height) = voronoi(px * 2, pz * 2)
 
-    val h = y / 80
+    val h = y / 80.0
 
-    // Formula: 0.8+\left(1-h\right)\cdot0.2-1.2pd+0.5x
+    // Formula: 0.8+\left(1-\max\left(h,0.75\right)\right)\cdot0.2-1.2p+0.5x
     (
-      0.8 + (1-h) * 0.2 // Wetter at lower altitudes
-      - 1.2 * plate_height * plate_dist // And closer to the sea
+      0.8 + (1-h.max(0.75)) * 0.2 // Wetter at lower altitudes (above sea level)
+      - 1.2 * 0.5 * plate_height * plate_dist // And closer to the sea
       + 0.5 * fBm(432.32 - px*0.005, -987.62 + pz*0.005, 6) // Add some noise
     )
   }
@@ -212,5 +192,5 @@ class Terrain extends BiomeProvider {
     x
   }
   override def getSurfaceBlocks(): java.util.Set[BlockState] = surface
-  override def hasStructure(structureIn: Structure[_]): Boolean = false
+  override def hasStructure(structureIn: Structure[_]): Boolean = true
 }

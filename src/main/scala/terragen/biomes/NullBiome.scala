@@ -23,6 +23,7 @@ import net.minecraftforge.event.world.WorldEvent
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraft.world.gen.Heightmap
 import net.minecraft.world.gen.carver.WorldCarver
+import net.minecraft.world.gen.feature.structure._
 
 import java.{util => ju}
 import scala.util.control.Breaks._
@@ -31,9 +32,22 @@ import scala.collection.JavaConverters._
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
-// If we say it's extreme hills rain and snow change based on temperature
-class NullBiome(terr: Terrain) extends Biome(new Biome.Builder().surfaceBuilder(SurfaceBuilder.DEFAULT, SurfaceBuilder.AIR_CONFIG).precipitation(Biome.RainType.RAIN).category(Biome.Category.EXTREME_HILLS).depth(0.125f).scale(0.05f).temperature(0.2f).downfall(0.5f).waterColor(4159204).waterFogColor(329011).parent(null)) {
+// Biome.Category used for
+// - Ocean monuments only spawn in Ocean and River
+// - Underwater music plays in Ocean and River
+// - Rabbits behave differently (?)
+// - Patrols don't spawn in Mushroom
+// So if we want monuments, we have to use Ocean/River and just deal with underwater music playing
+class NullBiome(terr: Terrain) extends Biome(new Biome.Builder().surfaceBuilder(SurfaceBuilder.DEFAULT, SurfaceBuilder.GRASS_DIRT_SAND_CONFIG).precipitation(Biome.RainType.RAIN).category(Biome.Category.OCEAN).depth(0.125f).scale(0.05f).temperature(0.2f).downfall(0.5f).waterColor(4159204).waterFogColor(329011).parent(null)) {
   val LOGGER = LogManager.getLogger()
+
+  override def hasStructure[C <: IFeatureConfig](structure: Structure[C]): Boolean = {
+    LOGGER.fatal("Getting structure config for " + structure.getStructureName)
+    true
+  }
+
+  DefaultBiomeFeatures.addStructures(this)
+  addStructure(Feature.VILLAGE, new VillageConfig("village/plains/town_centers", 6));
 
   addCarver(GenerationStage.Carving.AIR, Biome.createCarver(new TCaveCarver(ProbabilityConfig.deserialize(_)), new ProbabilityConfig(0.14285715F)))
 
@@ -113,7 +127,7 @@ class NullBiome(terr: Terrain) extends Biome(new Biome.Builder().surfaceBuilder(
   }
 
   // This should make it snow and water freeze when it's cold enough
-  override def getTemperature(pos: BlockPos): Float = terr.temp(pos.getX, pos.getY, pos.getZ).toFloat / 25 - 0.05f
+  override def getTemperature(pos: BlockPos): Float = terr.temp(pos.getX, pos.getY, pos.getZ).toFloat / 20 - 0.05f
 
   @OnlyIn(Dist.CLIENT)
   override def getGrassColor(pos: BlockPos): Int = GrassColors.get(MathHelper.clamp(getTemperature(pos), 0, 1), MathHelper.clamp(terr.rain(pos.getX, pos.getY, pos.getZ), 0, 1))
@@ -178,6 +192,10 @@ class NullBiome(terr: Terrain) extends Biome(new Biome.Builder().surfaceBuilder(
           if (t < 5 && worldIn.getBlockState(ocean).getBlock == Blocks.WATER)
             worldIn.setBlockState(ocean, Blocks.ICE.getDefaultState, 2)
         }
+      }
+      // Place default structures
+      case GenerationStage.Decoration.SURFACE_STRUCTURES | GenerationStage.Decoration.UNDERGROUND_STRUCTURES => {
+        super.decorate(stage, chunkGenerator, worldIn, seed, random, start)
       }
       case _ => {}
     }

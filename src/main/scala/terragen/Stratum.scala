@@ -36,13 +36,20 @@ class Stratum(rock: BlockState, val probability: Double, val max_size: Double, v
   var in_ocean = true
   var in_continent = true
   var makes_cliffs = false
-  var conditions = CRange(Temp(-1000), Temp(1000), Rain(-1000), Rain(1000))
+  var conditions = HRange(Temp(-1000), Temp(1000), Rain(-1000), Rain(1000), -1000, 1000)
   var red: BlockState = null
   var max_age = 20.0
   var scale = 1.0
+  var power = 0.8
 
   def register(name: String): Stratum = {
     Strata.TO_REGISTER.push(this.setRegistryName(name))
+    this
+  }
+
+  // Controls falloff of noise
+  def pow(x: Double): Stratum = {
+    power = x
     this
   }
 
@@ -58,23 +65,26 @@ class Stratum(rock: BlockState, val probability: Double, val max_size: Double, v
   def getSizeAt(noise: Double, terr: Terrain, x: Int, y: Int, z: Int, continent_blend: Double, _age: Double): Double = {
     if ((probability > 1 && noise < (1 - probability))
       || _age < age || _age > max_age
-      || (conditions.has_r && !conditions.check(Rain(terr.rain(x, y, z))))
-      || (conditions.has_t && !conditions.check(Temp(terr.temp(x, y, z))))
-      || !conditions.check(y)
       || (ty == RockType.SURFACE && y <= 64)
       )
       return 0
 
     var plate_fac = if (in_ocean && !in_continent) 1 - continent_blend else if (!in_ocean && in_continent) continent_blend else 1
+    plate_fac *= conditions.check_soft(y)
+    if (conditions.has_r)
+      plate_fac *= conditions.check_soft(Rain(terr.rain(x, y, z)))
+    if (conditions.has_t)
+      plate_fac *= conditions.check_soft(Temp(terr.temp(x, y, z)))
+
     if (makes_cliffs)
       plate_fac = terr.smoothstep(0.8, 0.82, plate_fac)
     if (ty == RockType.SURFACE)
       plate_fac *= terr.smoothstep(64, 70, y)
 
     if (probability >= 1)
-      plate_fac * (min_size + noise.max(0) * (max_size - min_size))
+      plate_fac * (min_size + Math.pow(noise.max(0), power) * (max_size - min_size))
     else
-      plate_fac * (noise - (1 - probability)) / (1 - probability) * max_size
+      plate_fac * (Math.pow(noise, power) - (1 - probability)) / (1 - probability) * max_size
   }
 
   def getBlock(_red: Boolean): BlockState = if (red == null) rock else if (_red) red else rock
@@ -132,24 +142,24 @@ object Strata {
   // Stratum.register() adds it here automatically
   var TO_REGISTER = ArrayStack(
     // Currently our one and only metamorphic rock
-    new Stratum(TBlocks.MARBLE.getDefaultState, 0.3, 20, RockType.METAMORPHIC).continent.age(0.6).setRegistryName("marble"),
+    new Stratum(TBlocks.MARBLE.getDefaultState, 0.5, 30, RockType.METAMORPHIC).continent.age(0.6).setRegistryName("marble"),
 
-    new Stratum(Blocks.GRANITE.getDefaultState, 1, 50, RockType.IGNEOUS_INTRUSIVE).min_size(20).continent.age(0.9).setRegistryName("granite"),
-    new Stratum(Blocks.REDSTONE_ORE.getDefaultState, 0.35, 4, RockType.IGNEOUS_INTRUSIVE).continent.age(0.9).setRegistryName("copper"),
-    new Stratum(Blocks.STONE.getDefaultState, 1, 50, RockType.IGNEOUS_INTRUSIVE).age(0.4).min_size(20).continent.setRegistryName("stone"),
-    new Stratum(Blocks.IRON_ORE.getDefaultState, 0.3, 7, RockType.IGNEOUS_INTRUSIVE).setRegistryName("iron"),
-    new Stratum(Blocks.LAPIS_ORE.getDefaultState, 0.1, 4, RockType.IGNEOUS_INTRUSIVE).setRegistryName("lapis"),
-    new Stratum(Blocks.COAL_ORE.getDefaultState, 0.45, 10, RockType.SEDIMENTARY).age(0.7).setRegistryName("coal"),
-    new Stratum(Blocks.GOLD_ORE.getDefaultState, 0.2, 6, RockType.IGNEOUS_INTRUSIVE).setRegistryName("gold"),
-    new Stratum(Blocks.ANDESITE.getDefaultState, 0.4, 20, RockType.IGNEOUS_EXTRUSIVE).age(0.7).setRegistryName("andesite"),
-    new Stratum(TBlocks.BASALT.getDefaultState, 0.4, 20, RockType.IGNEOUS_EXTRUSIVE).age(0.3).setRegistryName("basalt"),
-    new Stratum(Blocks.OBSIDIAN.getDefaultState, 0.4, 5, RockType.IGNEOUS_EXTRUSIVE).age(0.1).setRegistryName("obsidian"),
+    new Stratum(Blocks.GRANITE.getDefaultState, 1, 60, RockType.IGNEOUS_INTRUSIVE).pow(0.6).min_size(20).continent.age(0.9).setRegistryName("granite"),
+    new Stratum(Blocks.REDSTONE_ORE.getDefaultState, 0.35, 7, RockType.IGNEOUS_INTRUSIVE).continent.age(0.9).setRegistryName("copper"),
+    new Stratum(Blocks.STONE.getDefaultState, 1, 60, RockType.IGNEOUS_INTRUSIVE).pow(0.7).age(0.4).min_size(20).continent.setRegistryName("stone"),
+    new Stratum(Blocks.IRON_ORE.getDefaultState, 0.2, 6, RockType.IGNEOUS_INTRUSIVE).scale(1.4).setRegistryName("iron"),
+    new Stratum(Blocks.LAPIS_ORE.getDefaultState, 0.05, 4, RockType.IGNEOUS_INTRUSIVE).setRegistryName("lapis"),
+    new Stratum(Blocks.COAL_ORE.getDefaultState, 0.45, 10, RockType.SEDIMENTARY).pow(0.7).scale(1.2).age(0.7).setRegistryName("coal"),
+    new Stratum(Blocks.GOLD_ORE.getDefaultState, 0.1, 6, RockType.IGNEOUS_INTRUSIVE).setRegistryName("gold"),
+    new Stratum(Blocks.ANDESITE.getDefaultState, 0.4, 30, RockType.IGNEOUS_EXTRUSIVE).pow(1.5).age(0.7).setRegistryName("andesite"),
+    new Stratum(TBlocks.BASALT.getDefaultState, 0.4, 70, RockType.IGNEOUS_EXTRUSIVE).pow(2.8).age(0.3).setRegistryName("basalt"),
+    new Stratum(Blocks.OBSIDIAN.getDefaultState, 0.4, 5, RockType.IGNEOUS_EXTRUSIVE).pow(1.8).age(0.1).setRegistryName("obsidian"),
     // I'm pretending this is gabbro too - they're pretty similar
     new Stratum(Blocks.DIORITE.getDefaultState, 1, 20, RockType.IGNEOUS_INTRUSIVE).age(0.2).min_size(5).ocean.setRegistryName("gabbro"),
 
-    new Stratum(TBlocks.LIMESTONE.getDefaultState, 0.5, 40, RockType.SEDIMENTARY).continent.cliff.setRegistryName("limestone"),
-    new Stratum(Blocks.SANDSTONE.getDefaultState, 0.4, 10, RockType.SEDIMENTARY).age(0.3).red_variant(Blocks.RED_SANDSTONE.getDefaultState).setRegistryName("sandstone"),
-    new Stratum(Blocks.CLAY.getDefaultState, 0.25, 6, RockType.SEDIMENTARY).range(CRange(Temp(-1000), Temp(1000), R.DAMP, R.ANY)).setRegistryName("clay"),
+    new Stratum(TBlocks.LIMESTONE.getDefaultState, 0.5, 60, RockType.SEDIMENTARY).pow(1).continent.cliff.setRegistryName("limestone"),
+    new Stratum(Blocks.SANDSTONE.getDefaultState, 0.4, 30, RockType.SEDIMENTARY).pow(0.7).age(0.3).red_variant(Blocks.RED_SANDSTONE.getDefaultState).setRegistryName("sandstone"),
+    new Stratum(Blocks.CLAY.getDefaultState, 0.2, 10, RockType.SEDIMENTARY).range(CRange(Temp(-1000), Temp(1000), R.DAMP, R.ANY)).setRegistryName("clay"),
 
     new Stratum(Blocks.DIAMOND_ORE.getDefaultState, 0.005, 1, RockType.RANDOM_ORE).age(0.9).setRegistryName("diamond"),
     new Stratum(Blocks.EMERALD_ORE.getDefaultState, 0.002, 1, RockType.RANDOM_ORE).age(0.84).setRegistryName("emerald"),
@@ -159,7 +169,8 @@ object Strata {
     new Stratum(Blocks.GRASS_BLOCK.getDefaultState, 1, 1, RockType.SURFACE).range(CRange(T.SUBPOLAR, T.ANY, R.DRY, R.WET)).setRegistryName("grass"),
     // Swamp grass
     new Stratum(Blocks.GRASS_BLOCK.getDefaultState, 1, 1, RockType.SURFACE).range(CRange(T.SUBPOLAR, T.SUBTROPIC, R.WET, R.ANY)).setRegistryName("swamp_grass"),
-    new Stratum(Blocks.PODZOL.getDefaultState, 1, 1, RockType.SURFACE).range(CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY)).setRegistryName("podzol"),
+    // Prioritize podzol over grass (higher age)
+    new Stratum(Blocks.PODZOL.getDefaultState, 1, 1, RockType.SURFACE).range(CRange(T.SUBTROPIC, T.ANY, R.WET, R.ANY)).age(0.6).setRegistryName("podzol"),
     new Stratum(Blocks.COARSE_DIRT.getDefaultState, 1, 1, RockType.SURFACE).age(0.2).max_age(0.5).setRegistryName("coarse_dirt")
   )
 

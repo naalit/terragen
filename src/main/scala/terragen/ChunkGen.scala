@@ -150,7 +150,12 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
     val convergent_n = terr.gen.getValue(x * 0.000005 + 238.2341, z * 0.000005 + 38.2341)
     val hotspot_dist = terr.hotspot(x, z)
     // How long has this crust been here? New crust is created/exposed at divergent faults and hotspots
-    val age = 1 - terr.smoothstep(0.99, 1.0, 1 - hotspot_dist) - (plate_dist - 0.4).max(0).min(1) * ocean_blend * (1 - convergent_n - 0.5) * 28.6
+    val age = 1 // - terr.smoothstep(0.99, 1.0, 1 - hotspot_dist) - (0.05 - plate_dist).max(0).min(1) * ocean_blend * (1 - convergent_n - 0.5) * 28.6
+
+    val river = terr.river(x, z)
+
+    // place_rock(100-river*100, Blocks.STONE.getDefaultState)
+    // return arr
 
     // TODO mix strata of the same type+age with each other
 
@@ -185,7 +190,7 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
       arr(arr.length-i) = Blocks.LAVA.getDefaultState
 
     // Sedimentary rocks only form where there's sediment - flowing water or wind
-    val sedimentary = (Math.pow(2 * (terr.rain_smooth(x, arr.length, z) - 0.5).abs, 0.5) - 0.2) / 0.8
+    val sedimentary = (Math.pow(2 * (terr.rain_smooth(x, arr.length, z) - 0.5).abs, 0.5) - 0.2) / 0.8 + river
     var a = true
     for (rock <- Strata.SEDIMENTARY) {
       // Age doesn't matter here
@@ -204,15 +209,15 @@ class ChunkGen[C <: net.minecraft.world.gen.GenerationSettings](
       }
     }
 
-    val erosion = (next(1) - 0.2) * 30
-    arr.drop(erosion.toInt.max(0))
+    val erosion = (next(1) - 0.2) * 30 + river * (arr.length-45).max(0)
+    arr = arr.take(3) ++ arr.drop(erosion.toInt.max(3))
 
     // Skip surface if this layer is being subducted
     if (!do_subduction)
       return arr
 
     // Surface
-    var b = true
+    var b = false
     var one = false
     // Ocean sand is hardcoded in
     if (arr.length < 70 && age > 0.3)

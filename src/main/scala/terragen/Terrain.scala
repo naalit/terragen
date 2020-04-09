@@ -93,7 +93,7 @@ class Terrain extends BiomeProvider {
 
   def mix(x: Double, y: Double, a: Double): Double = x*(1-a)+y*a
 
-  // Returns (distance to border, blend between 1=continent 0=ocean)
+  // Returns (Rough distance to border, continental shelf blend)
   def voronoi(x: Double, z: Double): (Double, Double) = {
     // Smoothing factor
     val w = 0.2
@@ -105,6 +105,11 @@ class Terrain extends BiomeProvider {
     var min_d = 8.0
     var min_h = 0.0
 
+    var mi = 0
+    var mj = 0
+    var mrx = 0.0
+    var mrz = 0.0
+
     for (i <- -1 to 1; j <- -1 to 1) {
       val rx = i + hash(j + nz, i + nx, 1234) - fx
       val rz = j + hash(j + nz, i + nx, 9823) - fz
@@ -112,15 +117,34 @@ class Terrain extends BiomeProvider {
 
       var h = smoothstep(0.5, 0.5, hash(j + nz, i + nx, -3287))
       // Force a continent near spawn so you don't spawn in the middle of the sea
+      // That's off temporarily
 
       var b = (0.5+0.5*(min_d-d)/w).min(1).max(0)
       var c = b*(1-b)*w/(1+3*w)
+
+      if (d < min_d) {
+        mi = i
+        mj = j
+        mrx = rx
+        mrz = rz
+      }
 
       min_d = mix(min_d, d, b) - c
       min_h = mix(min_h, h, b) - c
     }
 
-    (min_d, min_h)
+    var min_d2 = 8.0
+    // Second pass to find exact distances to edges - needed for plate borders
+    for (i <- -2 to 2; j <- -2 to 2) {
+      val rx = mi + i + hash(mj + j + nz, mi + i + nx, 1234) - fx
+      val rz = mi + j + hash(mj + j + nz, mi + i + nx, 9823) - fz
+      val d2 = Math.sqrt((mrx - rx) * (mrx - rx) + (mrz - rz) * (mrz - rz))
+
+      if (d2 > 0.00001)
+        min_d2 = min_d2.min(0.5*(mrx+rx)*(rx-mrx)/d2 + 0.5*(mrz+rz)*(rz-mrz)/d2)
+    }
+
+    (min_d2, smoothstep(0.5, 0.4, min_d)*min_h)
   }
 
   val SCALE = 0.0003
@@ -159,6 +183,37 @@ class Terrain extends BiomeProvider {
     t + rand.nextDouble() * 2 - 1
   }
 
+  def min(xs: Double*): Double = {
+    xs.reduce((x, y) => x.min(y))
+  }
+
+  // Bad lakes & rivers
+  def river(x: Int, z: Int): Double = {
+    val RSC = 2.0
+    val i_SC = 1/RSC
+
+    val px = x*SCALE
+    val pz = z*SCALE
+
+    val rx0 = i_SC * (px*RSC).floor + 0.2*fBm(pz*0.01+(px*RSC).floor*2.1432, pz*0.01-(px*RSC).floor*1.8312, 6)
+    val rx1 = i_SC * ((px*RSC).floor+1) + 0.2*fBm(pz*0.01+((px*RSC).floor+1)*2.1432, pz*0.01-((px*RSC).floor+1)*1.8312, 6)
+    val rz0 = i_SC * (pz*RSC).floor + 0.2*fBm(px*0.01+(pz*RSC).floor*8.8324, px*0.01-(pz*RSC).floor*5.1312, 6)
+    val rz1 = i_SC * ((pz*RSC).floor+1) + 0.2*fBm(px*0.01+((pz*RSC).floor+1)*8.8324, px*0.01-((pz*RSC).floor+1)*5.1312, 6)
+
+    val r = 1.0-10*min( //smoothstep(0.010+gen.getValue(px+3024.24982347, pz-239847.289347)*0.005, 0.0, min(
+      (px-rx0).abs,
+      (px-rx1).abs,
+      (pz-rz0).abs,
+      (pz-rz1).abs
+    ) //)
+    // Lakes where two rivers intersect
+    // Temporarily disabled
+    // val l = smoothstep(0.003+gen.getValue(px+302.4982347, pz-23984.89347)*0.002, 0.0,
+    //   min((px-rx0).abs, (px-rx1).abs) * min((pz-rz0).abs, (pz-rz1).abs) )
+
+    r //.max(l)
+  }
+
   // Without random blend
   def rain_smooth(x: Int, y: Int, z: Int): Double = {
     val px = x*SCALE
@@ -172,6 +227,7 @@ class Terrain extends BiomeProvider {
     (
       0.8 + (1-h.max(0.75)) * 0.2 // Wetter at lower altitudes (above sea level)
       - 1.2 * 0.5 * plate_height * plate_dist // And closer to the sea
+      + 0.4 * river(x, z) // Or near a river or lake
       + 0.5 * fBm(432.32 - px*0.005, -987.62 + pz*0.005, 6) // Add some noise
     )
   }

@@ -76,9 +76,14 @@ class Terragen extends WorldType("terragen") {
       }).create
     })
 
-  override def createChunkGenerator(world: World): ChunkGenerator[_] = {
-    terr.reseed(world.getSeed)
-    new ChunkGen(world, terr, new GenerationSettings())
+  import net.minecraft.world.dimension.DimensionType
+  override def createChunkGenerator(world: World): ChunkGenerator[_] = world.getDimension.getType match {
+    case DimensionType.OVERWORLD => {
+      terr.reseed(world.getSeed)
+      new ChunkGen(world, terr, new GenerationSettings())
+    }
+    // This is deprecated, but I don't know why or what to replace it with, and it seems to work fine
+    case _ => world.getDimension.createChunkGenerator()
   }
 
   def commonSetup(evt: FMLCommonSetupEvent) {
